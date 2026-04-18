@@ -655,7 +655,7 @@ export const EN_WORDS: DictionaryEntry[] = [
   // ╚══════════════════════════════════════════════╝
   {
     word: "fuck",
-    normalized: ["fuk", "fuc", "phuck", "phuk", "fvck", "f*ck", "f**k"],
+    normalized: ["fuk", "fuc", "phuck", "phuk", "fk", "fvck", "f*ck", "f**k"],
     language: "en",
     severity: "high",
     category: "sexual",
