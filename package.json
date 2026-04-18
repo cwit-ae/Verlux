@@ -40,12 +40,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/dev-cwit/verlux.git"
+    "url": "git+https://github.com/cwit-ae/verlux.git"
   },
   "bugs": {
-    "url": "https://github.com/dev-cwit/verlux/issues"
+    "url": "https://github.com/cwit-ae/verlux/issues"
   },
-  "homepage": "https://github.com/dev-cwit/verlux#readme",
+  "homepage": "https://github.com/cwit-ae/verlux#readme",
   "engines": {
     "node": ">=18"
   },
