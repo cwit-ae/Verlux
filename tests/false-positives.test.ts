@@ -67,10 +67,24 @@ describe('False Positives — Innocent Words', () => {
     'astronaut', 'astute', 'Scaffold',
   ];
 
+  // Fuzzy-match collisions at similarity 0.857 (one edit in a 7-char word).
+  // These are legitimate English words that sit one edit away from a
+  // dictionary entry and must be caught by the internal safelist.
+  const fuzzyCollisions = [
+    // near "scammer"
+    'spammer', 'scamper', 'slammer', 'stammer',
+    'spammers', 'scampered', 'scampering',
+    // near "shitter"
+    'shatter', 'shutter', 'shotter',
+    'shattered', 'shattering', 'shuttered',
+    // near "twink"
+    'twinkle', 'twinkled', 'twinkles', 'twinkling',
+  ];
+
   const allInnocentWords = [
     ...assWords, ...cockWords, ...cumWords, ...hellWords, ...buttWords,
     ...titWords, ...penWords, ...analWords, ...organWords, ...properNames,
-    ...miscWords, ...ukPlaceNames,
+    ...miscWords, ...ukPlaceNames, ...fuzzyCollisions,
   ];
 
   it.each(allInnocentWords)('should NOT flag "%s"', (word) => {

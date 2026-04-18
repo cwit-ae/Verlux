@@ -87,6 +87,17 @@ const SAFE_WORDS = new Set([
   // "fraud" IS flagged intentionally — it's relevant in call center abuse
   // Close to "scam"
   'scanner', 'scanning',
+  // Close to "scammer" (one-edit collisions at similarity 0.857)
+  'spammer', 'spammers', 'spamming',
+  'scamper', 'scampered', 'scampering', 'scampers',
+  'slammer', 'slammers',
+  'stammer', 'stammered', 'stammering', 'stammers',
+  // Close to "shitter" (one-edit collisions at similarity 0.857)
+  'shatter', 'shattered', 'shattering', 'shatters',
+  'shutter', 'shuttered', 'shuttering', 'shutters',
+  'shotter',
+  // Close to "twink"
+  'twinkle', 'twinkled', 'twinkles', 'twinkling',
   // Close to "loser"
   'closer', 'closure',
   // Close to "fool"
