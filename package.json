@@ -1,0 +1,58 @@
+{
+  "name": "verlux",
+  "version": "1.0.0",
+  "description": "Intelligent multilingual profanity detection with fuzzy matching, transliteration, and phrase detection",
+  "main": "dist/cjs/index.js",
+  "module": "dist/esm/index.js",
+  "types": "dist/types/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/esm/index.js",
+      "require": "./dist/cjs/index.js",
+      "types": "./dist/types/index.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "npm run build:esm && npm run build:cjs",
+    "build:esm": "tsc -p tsconfig.esm.json",
+    "build:cjs": "tsc -p tsconfig.cjs.json",
+    "test": "node --experimental-vm-modules node_modules/.bin/jest",
+    "test:watch": "node --experimental-vm-modules node_modules/.bin/jest --watch",
+    "lint": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "profanity",
+    "filter",
+    "abuse",
+    "detection",
+    "multilingual",
+    "fuzzy",
+    "transliteration",
+    "hinglish",
+    "moderation",
+    "content-filter"
+  ],
+  "author": "Bilal Subhani - CWIT",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dev-cwit/verlux.git"
+  },
+  "bugs": {
+    "url": "https://github.com/dev-cwit/verlux/issues"
+  },
+  "homepage": "https://github.com/dev-cwit/verlux#readme",
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.12",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.2",
+    "typescript": "^5.4.0"
+  }
+}

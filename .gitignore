@@ -1,0 +1,9 @@
+node_modules/
+dist/
+*.tsbuildinfo
+.DS_Store
+coverage/
+.env
+PUBLISHING.md
+verlux-1.0.0.tgz
+.claude/
