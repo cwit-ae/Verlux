@@ -9,11 +9,11 @@
 <h1 align="center">Verlux</h1>
 
 <p align="center">
-  <strong>Intelligent multilingual profanity detection with fuzzy matching, transliteration, and phrase detection.</strong>
+  <strong>Multilingual profanity detection with fuzzy matching, transliteration, and phrase detection.</strong>
 </p>
 
 <p align="center">
-  Built for content moderation, call center abuse detection, and chat filtering.<br/>
+  Built for content moderation, abuse detection, and chat filtering.<br/>
   Zero dependencies. Works offline. Handles obfuscation.
 </p>
 
