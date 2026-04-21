@@ -1,9 +1,12 @@
 <p align="center">
-  <img src="https://img.shields.io/npm/v/verlux?style=flat-square&color=1a1a2e" alt="npm version" />
+  <a href="https://www.npmjs.com/package/verlux"><img src="https://img.shields.io/npm/v/verlux?style=flat-square&color=1a1a2e" alt="npm version" /></a>
+  <a href="https://github.com/cwit-ae/Verlux/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/cwit-ae/Verlux/ci.yml?branch=main&style=flat-square&color=1a1a2e&label=CI" alt="CI status" /></a>
+  <a href="https://github.com/cwit-ae/Verlux/actions/workflows/codeql.yml"><img src="https://img.shields.io/github/actions/workflow/status/cwit-ae/Verlux/codeql.yml?branch=main&style=flat-square&color=1a1a2e&label=CodeQL" alt="CodeQL status" /></a>
+  <a href="https://www.npmjs.com/package/verlux"><img src="https://img.shields.io/npm/dm/verlux?style=flat-square&color=1a1a2e" alt="npm downloads" /></a>
   <img src="https://img.shields.io/badge/zero-dependencies-1a1a2e?style=flat-square" alt="zero dependencies" />
   <img src="https://img.shields.io/badge/languages-3-1a1a2e?style=flat-square" alt="languages" />
   <img src="https://img.shields.io/badge/dictionary-701_entries-1a1a2e?style=flat-square" alt="dictionary" />
-  <img src="https://img.shields.io/badge/license-MIT-1a1a2e?style=flat-square" alt="license" />
+  <img src="https://img.shields.io/npm/l/verlux?style=flat-square&color=1a1a2e" alt="license" />
 </p>
 
 <h1 align="center">Verlux</h1>
