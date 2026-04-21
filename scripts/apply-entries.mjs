@@ -24,7 +24,7 @@ const esc = (s) => s.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 function renderWord(e) {
   return [
     `${indent}{`,
-    `${indent*2 ? '    ' : '    '}word: '${esc(e.word)}',`,
+    `    word: '${esc(e.word)}',`,
     `    normalized: [],`,
     `    language: 'en',`,
     `    severity: '${e.severity}',`,

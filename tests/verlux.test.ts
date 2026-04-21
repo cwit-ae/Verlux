@@ -1,4 +1,4 @@
-import { verlux, createInstance } from '../src/index';
+import { verlux } from '../src/index';
 
 describe('Verlux', () => {
   describe('detect', () => {
