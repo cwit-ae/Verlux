@@ -23,7 +23,7 @@ export function tokenize(input: string): Token[] {
   // á é í ó ú ü ñ ç à â ê î ô û etc. — keeps accented words as single tokens.
   // Apostrophe segment is bounded (single optional suffix, capped length) to
   // prevent catastrophic backtracking on pathological input like "a''''''…".
-  const regex = /[a-zA-Z0-9\u00C0-\u024F\u0900-\u097F\u0600-\u06FF\u4E00-\u9FFF\u3400-\u4DBF]+(?:[''][a-zA-Z]{1,20})?/g;
+  const regex = /[a-zA-Z0-9\u00C0-\u024F\u0900-\u097F\u0600-\u06FF\u4E00-\u9FFF\u3400-\u4DBF]+(?:['\u2018\u2019][a-zA-Z]{1,20})?/g;
   let match: RegExpExecArray | null;
 
   while ((match = regex.exec(input)) !== null) {
