@@ -226,6 +226,10 @@ export function detect(
 
   // Phase 1: Single-word detection (clean tokens)
   for (const token of tokens) {
+    // Skip tokens embedded in snake_case identifiers (e.g. `fk` inside
+    // `fk_company_modules`). An adjacent underscore in the raw input signals
+    // that this "word" is an identifier part, not natural language.
+    if (isInsideSnakeCase(token, input)) continue;
     const result = matchToken(token, index, config);
     if (result) {
       results.push(result);
@@ -240,6 +244,11 @@ export function detect(
     if (results.some(r => r.position[0] <= segment.start && r.position[1] >= segment.end)) {
       continue;
     }
+    // Skip snake_case identifiers — the strip-non-alphanumeric variant would
+    // otherwise collapse `fk_company_modules` to `fkcompanymodules`. We keep
+    // single-letter obfuscation (`f_u_c_k`) detectable by only skipping when
+    // at least one `_`-separated piece is multi-char.
+    if (isSnakeCaseIdentifier(segment.value)) continue;
     const result = matchRawSegment(segment, index, config);
     if (result) {
       results.push(result);
@@ -260,6 +269,16 @@ interface RawSegment {
   value: string;
   start: number;
   end: number;
+}
+
+function isInsideSnakeCase(token: Token, input: string): boolean {
+  return input[token.start - 1] === '_' || input[token.end] === '_';
+}
+
+function isSnakeCaseIdentifier(segment: string): boolean {
+  if (!segment.includes('_')) return false;
+  const parts = segment.split('_').filter(Boolean);
+  return parts.length > 1 && parts.some(p => p.length >= 2);
 }
 
 /**
