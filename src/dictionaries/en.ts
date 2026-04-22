@@ -533,7 +533,7 @@ export const EN_WORDS: DictionaryEntry[] = [
     severity: "high",
     category: "slur",
     allowPartialMatch: false,
-    aliases: ["tards", "libtard", "fucktard"],
+    aliases: ["tards", "libtard", "fucktard", "fucktards"],
   },
   {
     word: "spaz",
@@ -750,7 +750,7 @@ export const EN_WORDS: DictionaryEntry[] = [
     severity: "high",
     category: "sexual",
     allowPartialMatch: false,
-    aliases: ["cum shot"],
+    aliases: ["cum shot", "cumshots", "cum shots"],
   },
   {
     word: "cum",
@@ -759,7 +759,7 @@ export const EN_WORDS: DictionaryEntry[] = [
     severity: "medium",
     category: "sexual",
     allowPartialMatch: false,
-    aliases: ["coom", "kum"],
+    aliases: ["coom", "kum", "cumming", "cummed"],
   },
   {
     word: "porn",
@@ -4632,6 +4632,48 @@ export const EN_WORDS: DictionaryEntry[] = [
     allowPartialMatch: true,
     aliases: [],
   },
+
+  // ╔══════════════════════════════════════════════╗
+  // ║         LDNOOBW-SOURCED ADDITIONS            ║
+  // ║  CC-BY 4.0 — see NOTICES/LDNOOBW.md          ║
+  // ╚══════════════════════════════════════════════╝
+  {
+    word: "bullshit",
+    normalized: ["bullsh1t", "bullsh!t", "bullsh*t", "bullsht", "bullsh1t"],
+    language: "en",
+    severity: "medium",
+    category: "insult",
+    allowPartialMatch: false,
+    aliases: ["bullshits", "bullshitting", "bullshitted", "bullshitter", "bull shit"],
+  },
+  {
+    word: "clusterfuck",
+    normalized: ["clusterf*ck", "clusterfvck", "clusterf**k"],
+    language: "en",
+    severity: "medium",
+    category: "insult",
+    allowPartialMatch: false,
+    aliases: ["clusterfucks", "clusterfucking", "cluster fuck", "cluster-fuck"],
+  },
+  // pthc is a CSAM indicator — must always be flagged at highest severity.
+  {
+    word: "pthc",
+    normalized: [],
+    language: "en",
+    severity: "high",
+    category: "sexual",
+    allowPartialMatch: false,
+    aliases: [],
+  },
+  {
+    word: "🖕",
+    normalized: [],
+    language: "en",
+    severity: "medium",
+    category: "insult",
+    allowPartialMatch: false,
+    aliases: [],
+  },
 ];
 
 export const EN_PHRASES: PhraseEntry[] = [
@@ -5087,5 +5129,63 @@ export const EN_PHRASES: PhraseEntry[] = [
     language: "en",
     severity: "low",
     category: "sexual",
+  },
+
+  // --- LDNOOBW-sourced additions (CC-BY 4.0 — see NOTICES/LDNOOBW.md) ---
+  {
+    phrase: "god damn",
+    words: ["god", "damn"],
+    language: "en",
+    severity: "low",
+    category: "insult",
+  },
+  {
+    phrase: "jack off",
+    words: ["jack", "off"],
+    language: "en",
+    severity: "medium",
+    category: "sexual",
+  },
+  {
+    phrase: "jerk off",
+    words: ["jerk", "off"],
+    language: "en",
+    severity: "medium",
+    category: "sexual",
+  },
+  {
+    phrase: "blow your load",
+    words: ["blow", "your", "load"],
+    language: "en",
+    severity: "medium",
+    category: "sexual",
+  },
+  {
+    phrase: "eat my ass",
+    words: ["eat", "my", "ass"],
+    language: "en",
+    severity: "high",
+    category: "insult",
+  },
+  {
+    phrase: "carpet muncher",
+    words: ["carpet", "muncher"],
+    language: "en",
+    severity: "high",
+    category: "slur",
+  },
+  {
+    phrase: "fudge packer",
+    words: ["fudge", "packer"],
+    language: "en",
+    severity: "high",
+    category: "slur",
+  },
+  {
+    phrase: "pole smoker",
+    words: ["pole", "smoker"],
+    language: "en",
+    severity: "high",
+    category: "slur",
   },
 ];

@@ -5,7 +5,7 @@
   <a href="https://www.npmjs.com/package/verlux"><img src="https://img.shields.io/npm/dm/verlux?style=flat-square&color=1a1a2e" alt="npm downloads" /></a>
   <img src="https://img.shields.io/badge/zero-dependencies-1a1a2e?style=flat-square" alt="zero dependencies" />
   <img src="https://img.shields.io/badge/languages-3-1a1a2e?style=flat-square" alt="languages" />
-  <img src="https://img.shields.io/badge/dictionary-701_entries-1a1a2e?style=flat-square" alt="dictionary" />
+  <img src="https://img.shields.io/badge/dictionary-713_entries-1a1a2e?style=flat-square" alt="dictionary" />
   <img src="https://img.shields.io/npm/l/verlux?style=flat-square&color=1a1a2e" alt="license" />
 </p>
 
@@ -338,7 +338,7 @@ Measured on commodity developer hardware with the full multi-language index load
 | Cold start                    | Under 50 ms                                                         |
 | Memory footprint              | Approximately 2 MB                                                  |
 | Runtime dependencies          | 0                                                                   |
-| Test suite                    | 261 tests passing                                                   |
+| Test suite                    | 294 tests passing                                                   |
 
 > **Disclaimer.** All figures above are reported on the datasets, hardware, and Node.js versions available at the time of publication. They are provided for informational purposes only and do not constitute a guarantee of performance or accuracy for any specific production workload. Consumers are strongly encouraged to validate Verlux against their own representative data before relying on it in critical systems.
 
@@ -346,9 +346,9 @@ Measured on commodity developer hardware with the full multi-language index load
 
 ## Dictionary Coverage
 
-**Total:** 3 languages — 608 words and 93 phrases across English, Hinglish, and Spanish. The tables below describe the dictionary at the category level only. Specific vocabulary is deliberately omitted from this document; the authoritative wordlists reside under [`src/dictionaries/`](./src/dictionaries).
+**Total:** 3 languages — 612 words and 101 phrases across English, Hinglish, and Spanish. The tables below describe the dictionary at the category level only. Specific vocabulary is deliberately omitted from this document; the authoritative wordlists reside under [`src/dictionaries/`](./src/dictionaries).
 
-### English — 496 words, 63 phrases
+### English — 500 words, 71 phrases
 
 | Category                         | Entries | Scope                                                                                                         |
 | -------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------- |
@@ -366,13 +366,13 @@ Measured on commodity developer hardware with the full multi-language index load
 | Self-harm references             | 5       | Direct references and common abbreviations, with complementary phrase detection                               |
 | Explicit-content terms           | 15+     | Vocabulary used to describe pornographic or non-consensual content                                            |
 | Drug references                  | 4       | Commonly misused substance names                                                                              |
-| Phrases                          | 59      | Multi-word expressions including violent threats, hate-ideology slogans, and incitements to self-harm         |
+| Phrases                          | 71      | Multi-word expressions including violent threats, hate-ideology slogans, and incitements to self-harm         |
 
-### Hinglish (Hindi–Latin script) — 32 words, 10 phrases
+### Hinglish (Hindi–Latin script) — 32 words, 13 phrases
 
 Covers the most frequently used Hindi and Urdu invective written in Roman script, with extensive coverage of spelling variants. The category includes familial insults, pejoratives directed at women, generic invective, and anatomical crudities, each entered together with its common romanisation alternatives. Specific vocabulary is not reproduced here.
 
-### Spanish — 85+ words, 17 phrases
+### Spanish — 80 words, 17 phrases
 
 Covers peninsular (Spain) Spanish and major Latin American variants, including Mexico, Argentina, Uruguay, Colombia, and Chile. Handles all relevant diacritics (`ñ`, `á`, `é`, `í`, `ó`, `ú`, `ü`, `ç`), so accented and accent-stripped inputs both match. The category includes anatomical crudities, blasphemy, familial insults, homophobic pejoratives, and region-specific slang, together with multi-word phrases of the same types. Specific vocabulary is not reproduced here.
 
@@ -451,7 +451,8 @@ Dictionary entries are informed by vocabulary published in peer-reviewed hate-sp
 - **HateCheck** — Röttger et al., 2021. Functional tests for hate speech detection models. ([GitHub](https://github.com/paul-rottger/hatecheck-data))
 - **Slur Corpus** — Kurrek et al., 2020. Taxonomy for online slur usage. ([GitHub](https://github.com/networkdynamics/slur-corpus))
 - **obscenity** — jo3-l, MIT-licensed. English profanity dataset, originally derived from [cuss](https://github.com/words/cuss) © Titus Wormer. ([GitHub](https://github.com/jo3-l/obscenity))
-- **leo-profanity / LDNOOBW** — jojoee, MIT-licensed. Derivative of the Shutterstock _List of Dirty, Naughty, Obscene and Otherwise Bad Words_. ([GitHub](https://github.com/jojoee/leo-profanity))
+- **leo-profanity** — jojoee, MIT-licensed. Derivative of the Shutterstock _List of Dirty, Naughty, Obscene and Otherwise Bad Words_. ([GitHub](https://github.com/jojoee/leo-profanity))
+- **LDNOOBW** — direct source, CC-BY-4.0. The canonical _List of Dirty, Naughty, Obscene and Otherwise Bad Words_ originally published by Shutterstock. A curated subset of terms not otherwise covered is incorporated directly; attribution, license, and scope of reuse are recorded in [`NOTICES/LDNOOBW.md`](./NOTICES/LDNOOBW.md). ([GitHub](https://github.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words))
 - **Google Profanity Words** — Coffee & Fun, MIT-licensed. 962-word English profanity list. ([GitHub](https://github.com/coffee-and-fun/google-profanity-words))
 - Catalog: [hatespeechdata.com](https://hatespeechdata.com/)
 
