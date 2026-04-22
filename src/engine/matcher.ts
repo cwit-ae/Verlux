@@ -124,6 +124,68 @@ const SAFE_WORDS = new Set([
   // "pico" (beak) fuzzy-close to "pito"
   'pico', 'picos',
   // "ano" / "año" — not in dict, no action
+
+  // ── French collisions ──
+  // `con` is a common French root; `allowPartialMatch: false` handles exact
+  // lookup, but fuzzy matching can still trip on one-edit neighbours. These
+  // are the highest-frequency collisions.
+  'concert', 'condition', 'conte', 'conté', 'compte', 'conclu', 'conclusion',
+  'conjoint', 'connect', 'connaitre', 'connaître', 'conscient', 'conseil',
+  'considere', 'considéré', 'consiste', 'constat', 'construit', 'consulter',
+  'contact', 'contenu', 'content', 'continent', 'contre', 'contrôle', 'controle',
+  'convaincre', 'convenu', 'conversion', 'convoi', 'coton',
+  'bacon', 'balcon', 'flacon', 'garçon', 'garcon', 'melon', 'rançon', 'rancon',
+  // `pute` collides with `député`, `réputé`, `amputer`, `dispute`, `computer`
+  'depute', 'député', 'deputee', 'députée', 'deputes', 'députés',
+  'repute', 'réputé', 'reputation', 'réputation',
+  'dispute', 'disputee', 'disputée', 'disputer',
+  'compute', 'computer',  // English loanword, common in French tech text
+  'ampute', 'amputé', 'amputer', 'amputation',
+  // `bite` collides with `habite`, `orbite`, `cohabite`, `exhibé`
+  'habite', 'habiter', 'habitent', 'habitat', 'habitation',
+  'orbite', 'orbital', 'orbiter',
+  'cohabite', 'cohabiter', 'cohabitation',
+  'exhibe', 'exhibé', 'exhiber', 'exhibition',
+  // `cul` is partial-off so no substring issue, but fuzzy near-miss collisions:
+  'culte', 'culto', 'culture', 'cultiver', 'cultivé', 'culturel',
+  'calcul', 'calculer', 'circuler', 'circulation',
+  // `salope` contains `escalope` (veal cutlet)
+  'escalope', 'escalopes',
+  // `merde` fuzzy-close to `mercredi`, `merci` — safelist those
+  'mercredi', 'merci', 'merlé',
+  // `pute` fuzzy-close to `pâte` / `pute` / `peut`
+  'peut', 'pâte', 'pate',
+  // `bite` fuzzy-close to `boite`, `bète`, `bêtise`
+  'boite', 'boîte', 'bête', 'bete', 'bêtise', 'betise',
+  // `folle` is intentionally NOT in the dict as a word; "grande folle" is a phrase
+  'folle', 'folles',  // extra safety against fuzzy collisions with other entries
+
+  // ── German collisions ──
+  // `arsch` has no major benign compounds; safelist the fuzzy near-misses
+  'marsch', 'marschieren', 'forscher', 'forschung',
+  // `hure` fuzzy-close to `uhr`, `fuehr`, `gebuehr`
+  'uhr', 'uhren', 'gebühr', 'gebuehr', 'gebühren',
+  // `fick` fuzzy-close to `dick` (German: "thick/fat", benign), `pick`, `flick`
+  'dick',  // German: "thick/fat" — note English `dick` IS flagged via en.ts
+  'flick', 'flicken',  // German: "to patch/mend"
+  // `nutte` fuzzy-close to `mutter`, `butter`, `futter`, `stutte`
+  'mutter', 'butter', 'futter', 'stute',
+  // `möse` fuzzy-close to `möge`, `böse`, `rose`, `dose`
+  'möge', 'moege', 'böse', 'boese', 'rose', 'dose',
+  // `fotze` fuzzy-close to `trotze`, `glotze`
+  'trotz', 'glotze',
+  // `vögeln` fuzzy-close to `vogel` (bird, singular) — distinct from `vögeln`
+  'vogel', 'voegel', 'vögel', 'vogels',
+  // `titten` fuzzy-close to `bitten`, `sitten`, `mitten`
+  'bitten', 'sitten', 'mitten',
+  // `bumsen` fuzzy-close to `pumpen`, `summen`
+  'pumpen', 'summen',
+  // `poppen` fuzzy-close to `stoppen`, `hoppen`, `koppen`
+  'stoppen', 'stoppt',
+  // `wichse` close to `mixe`, `fixe`
+  'mixe', 'mixen', 'fixe', 'fixen',
+  // `nackt` is NOT in the dict (excluded for FP reasons), but include for safety
+  'nackt', 'nackte', 'nackten',
 ]);
 
 const SEVERITY_ORDER: Record<Severity, number> = {
