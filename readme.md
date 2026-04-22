@@ -4,8 +4,8 @@
   <a href="https://github.com/cwit-ae/Verlux/actions/workflows/codeql.yml"><img src="https://img.shields.io/github/actions/workflow/status/cwit-ae/Verlux/codeql.yml?branch=main&style=flat-square&color=1a1a2e&label=CodeQL" alt="CodeQL status" /></a>
   <a href="https://www.npmjs.com/package/verlux"><img src="https://img.shields.io/npm/dm/verlux?style=flat-square&color=1a1a2e" alt="npm downloads" /></a>
   <img src="https://img.shields.io/badge/zero-dependencies-1a1a2e?style=flat-square" alt="zero dependencies" />
-  <img src="https://img.shields.io/badge/languages-3-1a1a2e?style=flat-square" alt="languages" />
-  <img src="https://img.shields.io/badge/dictionary-701_entries-1a1a2e?style=flat-square" alt="dictionary" />
+  <img src="https://img.shields.io/badge/languages-5-1a1a2e?style=flat-square" alt="languages" />
+  <img src="https://img.shields.io/badge/dictionary-846_entries-1a1a2e?style=flat-square" alt="dictionary" />
   <img src="https://img.shields.io/npm/l/verlux?style=flat-square&color=1a1a2e" alt="license" />
 </p>
 
@@ -240,7 +240,7 @@ verlux.detect("<sentence containing a proper noun>", {
 
 ## Detection Pipeline
 
-Every input passes through a tiered matching system, ordered from fastest to most computationally expensive. All tiers query a single unified index built from every loaded language pack, so detection runs across English, Hinglish, and Spanish simultaneously without any per-call language hint.
+Every input passes through a tiered matching system, ordered from fastest to most computationally expensive. All tiers query a single unified index built from every loaded language pack, so detection runs across English, Hinglish, Spanish, French, and German simultaneously without any per-call language hint.
 
 ```
 Input Text
@@ -338,7 +338,7 @@ Measured on commodity developer hardware with the full multi-language index load
 | Cold start                    | Under 50 ms                                                         |
 | Memory footprint              | Approximately 2 MB                                                  |
 | Runtime dependencies          | 0                                                                   |
-| Test suite                    | 261 tests passing                                                   |
+| Test suite                    | 356 tests passing                                                   |
 
 > **Disclaimer.** All figures above are reported on the datasets, hardware, and Node.js versions available at the time of publication. They are provided for informational purposes only and do not constitute a guarantee of performance or accuracy for any specific production workload. Consumers are strongly encouraged to validate Verlux against their own representative data before relying on it in critical systems.
 
@@ -346,9 +346,9 @@ Measured on commodity developer hardware with the full multi-language index load
 
 ## Dictionary Coverage
 
-**Total:** 3 languages — 608 words and 93 phrases across English, Hinglish, and Spanish. The tables below describe the dictionary at the category level only. Specific vocabulary is deliberately omitted from this document; the authoritative wordlists reside under [`src/dictionaries/`](./src/dictionaries).
+**Total:** 5 languages — 723 words and 123 phrases across English, Hinglish, Spanish, French, and German. The tables below describe the dictionary at the category level only. Specific vocabulary is deliberately omitted from this document; the authoritative wordlists reside under [`src/dictionaries/`](./src/dictionaries).
 
-### English — 496 words, 63 phrases
+### English — 500 words, 71 phrases
 
 | Category                         | Entries | Scope                                                                                                         |
 | -------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------- |
@@ -366,15 +366,23 @@ Measured on commodity developer hardware with the full multi-language index load
 | Self-harm references             | 5       | Direct references and common abbreviations, with complementary phrase detection                               |
 | Explicit-content terms           | 15+     | Vocabulary used to describe pornographic or non-consensual content                                            |
 | Drug references                  | 4       | Commonly misused substance names                                                                              |
-| Phrases                          | 59      | Multi-word expressions including violent threats, hate-ideology slogans, and incitements to self-harm         |
+| Phrases                          | 71      | Multi-word expressions including violent threats, hate-ideology slogans, and incitements to self-harm         |
 
-### Hinglish (Hindi–Latin script) — 32 words, 10 phrases
+### Hinglish (Hindi–Latin script) — 32 words, 13 phrases
 
 Covers the most frequently used Hindi and Urdu invective written in Roman script, with extensive coverage of spelling variants. The category includes familial insults, pejoratives directed at women, generic invective, and anatomical crudities, each entered together with its common romanisation alternatives. Specific vocabulary is not reproduced here.
 
-### Spanish — 85+ words, 17 phrases
+### Spanish — 80 words, 17 phrases
 
 Covers peninsular (Spain) Spanish and major Latin American variants, including Mexico, Argentina, Uruguay, Colombia, and Chile. Handles all relevant diacritics (`ñ`, `á`, `é`, `í`, `ó`, `ú`, `ü`, `ç`), so accented and accent-stripped inputs both match. The category includes anatomical crudities, blasphemy, familial insults, homophobic pejoratives, and region-specific slang, together with multi-word phrases of the same types. Specific vocabulary is not reproduced here.
+
+### French — 54 words, 13 phrases
+
+Covers metropolitan French invective, including standard profanity, sexual slang, homophobic and racial slurs, and Franco-Arabic (banlieue) slang. Accented forms (`é`, `è`, `ê`, `à`, `ç`, `ï`, `ô`) and their accent-stripped counterparts both match after normalisation. Grammatical elisions (`d'enculé`, `l'enfoiré`, `t'es con`) are handled at tokenisation so that the core word is surfaced regardless of the elision prefix. Short high-collision roots (`con`, `pute`, `bite`, `cul`, `salope`) are gated with `allowPartialMatch: false` and backed by a French-specific false-positive safelist that covers common benign substring overlaps such as `concert`, `député`, `habite`, `culture`, and `escalope`. Multi-word phrases include aggressive familial insults and homophobic slurs.
+
+### German — 57 words, 9 phrases
+
+Covers standard High German invective. Handles all umlauts (`ä`, `ö`, `ü`, `ß`) in three input forms simultaneously: canonical (`möse`), accent-stripped (`mose`), and ASCII digraph (`moese`, `scheisse`) — every umlaut-bearing entry lists all three. Coverage includes racial and xenophobic slurs (including terms targeting Turkish, Arabic, and Black communities), homophobic pejoratives, sexual and scatological invective, and common imperative insult phrases (`fick dich`, `leck mich am arsch`, `verpiss dich`). Clinical and mainstream-loanword terms (`nackt`, `orgasmus`, `penis`, `porno`, `rosette`, `nippel`) are deliberately excluded, and the ambiguous `Schießer` / `Scheißer` collision is left unflagged. The `vögeln` (to fuck) vs `Vögel` (birds) distinction is preserved by the normalizer and exercised in regression tests.
 
 ---
 
@@ -385,8 +393,8 @@ Covers peninsular (Spain) Spanish and major Latin American variants, including M
 | `en`      | English                           | Shipped |
 | `hi-latn` | Hinglish (Hindi in Latin script)  | Shipped |
 | `es`      | Spanish (Spain and Latin America) | Shipped |
-| `fr`      | French                            | Planned |
-| `de`      | German                            | Planned |
+| `fr`      | French                            | Shipped |
+| `de`      | German                            | Shipped |
 | `zh`      | Chinese (Mandarin)                | Planned |
 | `ur-latn` | Urdu (Roman script)               | Planned |
 | `pa-latn` | Punjabi (Roman script)            | Planned |
@@ -428,7 +436,7 @@ app.post("/message", (req, res) => {
 
 ### Multilingual support channels
 
-No per-message language tagging is required. A single `detect()` call covers English, Spanish, and Hinglish in the same input:
+No per-message language tagging is required. A single `detect()` call covers English, Spanish, Hinglish, French, and German in the same input:
 
 ```ts
 verlux.detect("<mixed English + Spanish + Hinglish abuse>");
@@ -451,7 +459,8 @@ Dictionary entries are informed by vocabulary published in peer-reviewed hate-sp
 - **HateCheck** — Röttger et al., 2021. Functional tests for hate speech detection models. ([GitHub](https://github.com/paul-rottger/hatecheck-data))
 - **Slur Corpus** — Kurrek et al., 2020. Taxonomy for online slur usage. ([GitHub](https://github.com/networkdynamics/slur-corpus))
 - **obscenity** — jo3-l, MIT-licensed. English profanity dataset, originally derived from [cuss](https://github.com/words/cuss) © Titus Wormer. ([GitHub](https://github.com/jo3-l/obscenity))
-- **leo-profanity / LDNOOBW** — jojoee, MIT-licensed. Derivative of the Shutterstock _List of Dirty, Naughty, Obscene and Otherwise Bad Words_. ([GitHub](https://github.com/jojoee/leo-profanity))
+- **leo-profanity** — jojoee, MIT-licensed. Derivative of the Shutterstock _List of Dirty, Naughty, Obscene and Otherwise Bad Words_. ([GitHub](https://github.com/jojoee/leo-profanity))
+- **LDNOOBW** — direct source, CC-BY-4.0. The canonical _List of Dirty, Naughty, Obscene and Otherwise Bad Words_ originally published by Shutterstock. A curated subset of terms not otherwise covered is incorporated directly; attribution, license, and scope of reuse are recorded in [`NOTICES/LDNOOBW.md`](./NOTICES/LDNOOBW.md). ([GitHub](https://github.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words))
 - **Google Profanity Words** — Coffee & Fun, MIT-licensed. 962-word English profanity list. ([GitHub](https://github.com/coffee-and-fun/google-profanity-words))
 - Catalog: [hatespeechdata.com](https://hatespeechdata.com/)
 

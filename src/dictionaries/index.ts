@@ -6,6 +6,8 @@ import type { DictionaryEntry, PhraseEntry, Severity } from '../types.js';
 import { EN_WORDS, EN_PHRASES } from './en.js';
 import { HI_LATN_WORDS, HI_LATN_PHRASES } from './hi-latn.js';
 import { ES_WORDS, ES_PHRASES } from './es.js';
+import { FR_WORDS, FR_PHRASES } from './fr.js';
+import { DE_WORDS, DE_PHRASES } from './de.js';
 
 export interface LanguagePack {
   code: string;
@@ -60,6 +62,8 @@ const LANGUAGE_PACKS: LanguagePack[] = [
   { code: 'en', name: 'English', words: EN_WORDS, phrases: EN_PHRASES },
   { code: 'hi-latn', name: 'Hinglish', words: HI_LATN_WORDS, phrases: HI_LATN_PHRASES },
   { code: 'es', name: 'Spanish', words: ES_WORDS, phrases: ES_PHRASES },
+  { code: 'fr', name: 'French', words: FR_WORDS, phrases: FR_PHRASES },
+  { code: 'de', name: 'German', words: DE_WORDS, phrases: DE_PHRASES },
 ];
 
 LANGUAGE_PACKS.forEach(assertValidPack);
