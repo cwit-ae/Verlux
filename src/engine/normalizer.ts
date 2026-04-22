@@ -48,7 +48,6 @@ const MULTI_CHAR_SEQUENCES: [string, string][] = [
   ['`/', 'y'],         // `/ → y
   ['~/', 'z'],         // ~/ → z
   ['13', 'b'],         // 13 → b
-  ['cl', 'd'],         // cl → d  (only in l33t context)
   ['ph', 'f'],         // ph → f
   ['vv', 'w'],         // vv → w
   ['//', 'n'],         // // → n

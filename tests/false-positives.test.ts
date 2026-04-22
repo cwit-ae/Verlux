@@ -67,6 +67,14 @@ describe('False Positives — Innocent Words', () => {
     'astronaut', 'astute', 'Scaffold',
   ];
 
+  // Words starting with "cl" — previously collided with "dick" because the
+  // normalizer applied a `cl → d` l33t substitution unconditionally, turning
+  // "click" into "dick" after normalization.
+  const clWords = [
+    'click', 'clicks', 'clicked', 'clicking', 'clicker',
+    'double click', 'click here',
+  ];
+
   // Fuzzy-match collisions at similarity 0.857 (one edit in a 7-char word).
   // These are legitimate English words that sit one edit away from a
   // dictionary entry and must be caught by the internal safelist.
@@ -84,7 +92,7 @@ describe('False Positives — Innocent Words', () => {
   const allInnocentWords = [
     ...assWords, ...cockWords, ...cumWords, ...hellWords, ...buttWords,
     ...titWords, ...penWords, ...analWords, ...organWords, ...properNames,
-    ...miscWords, ...ukPlaceNames, ...fuzzyCollisions,
+    ...miscWords, ...ukPlaceNames, ...fuzzyCollisions, ...clWords,
   ];
 
   it.each(allInnocentWords)('should NOT flag "%s"', (word) => {
