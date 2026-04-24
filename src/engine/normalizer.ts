@@ -118,6 +118,13 @@ const SINGLE_MAP: Record<string, string> = {
 const INVISIBLE_RE = /[\u200B-\u200F\u2028-\u202F\u2060-\u2069\uFEFF\u00AD\u034F\u17B4\u17B5\u180E\uFFF0-\uFFFF]/g;
 
 // ─────────────────────────────────────────────
+// ALL-DIGITS SHORT-CIRCUIT
+// ─────────────────────────────────────────────
+// Pure-digit tokens (e.g. "422", "1337") decode to hallucinated matches via
+// SINGLE_MAP (4→a, 2→z, etc.). Skip l33t decoding when the token is all digits.
+const ALL_DIGITS_RE = /^\d+$/;
+
+// ─────────────────────────────────────────────
 // SEPARATOR REGEX (pre-compiled)
 // ─────────────────────────────────────────────
 // `\w` is ASCII-only in JS, so it misses Latin-Extended (é, ñ), Devanagari,
@@ -147,6 +154,9 @@ export function normalize(input: string): string {
 
   // Step 1: Strip invisible chars
   text = text.replace(INVISIBLE_RE, '');
+
+  // Short-circuit: pure-digit tokens bypass l33t decoding
+  if (ALL_DIGITS_RE.test(text)) return text;
 
   // Step 2: Multi-char l33t decode (greedy, longest-first)
   text = decodeMultiChar(text);
@@ -178,8 +188,10 @@ export function normalizeVariants(input: string): string[] {
   // No-collapse variant (some words have legit doubles)
   let noCollapse = input.toLowerCase();
   noCollapse = noCollapse.replace(INVISIBLE_RE, '');
-  noCollapse = decodeMultiChar(noCollapse);
-  noCollapse = decodeSingleChar(noCollapse);
+  if (!ALL_DIGITS_RE.test(noCollapse)) {
+    noCollapse = decodeMultiChar(noCollapse);
+    noCollapse = decodeSingleChar(noCollapse);
+  }
   noCollapse = noCollapse.replace(SEPARATOR_RE, '');
   variants.add(noCollapse.trim());
 

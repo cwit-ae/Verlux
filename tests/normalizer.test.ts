@@ -40,6 +40,14 @@ describe('Normalizer', () => {
       expect(normalize('$h!t')).toBe('shit');
       expect(normalize('@$$h0l3')).toBe('asshole');
     });
+
+    it('passes pure-digit tokens through without l33t decoding', () => {
+      // SINGLE_MAP would otherwise turn "422" into "azz" (an alias of "ass")
+      expect(normalize('422')).toBe('422');
+      expect(normalize('1337')).toBe('1337');
+      expect(normalize('4')).toBe('4');
+      expect(normalize('55')).toBe('55');
+    });
   });
 
   describe('normalizeVariants', () => {
@@ -53,6 +61,12 @@ describe('Normalizer', () => {
     it('handles clean words without breaking them', () => {
       const variants = normalizeVariants('hello');
       expect(variants).toContain('hello');
+    });
+
+    it('does not decode pure-digit tokens into profanity aliases', () => {
+      const variants = normalizeVariants('422');
+      expect(variants).not.toContain('azz');
+      expect(variants).toContain('422');
     });
   });
 });

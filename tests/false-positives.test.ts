@@ -75,6 +75,14 @@ describe('False Positives — Innocent Words', () => {
     'double click', 'click here',
   ];
 
+  // Pure-digit tokens: SINGLE_MAP would decode "422" → "azz" (ass alias),
+  // "1337" → "ieet", etc. Digit-only obfuscation isn't readable as profanity
+  // to humans, so the normalizer skips l33t decoding for all-digit tokens.
+  const numericStrings = [
+    '422', '1337', '404', '200', '500', '42',
+    '0000', '9999', 'HTTP 422', 'status 500',
+  ];
+
   // Fuzzy-match collisions at similarity 0.857 (one edit in a 7-char word).
   // These are legitimate English words that sit one edit away from a
   // dictionary entry and must be caught by the internal safelist.
@@ -93,6 +101,7 @@ describe('False Positives — Innocent Words', () => {
     ...assWords, ...cockWords, ...cumWords, ...hellWords, ...buttWords,
     ...titWords, ...penWords, ...analWords, ...organWords, ...properNames,
     ...miscWords, ...ukPlaceNames, ...fuzzyCollisions, ...clWords,
+    ...numericStrings,
   ];
 
   it.each(allInnocentWords)('should NOT flag "%s"', (word) => {
