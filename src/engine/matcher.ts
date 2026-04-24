@@ -66,6 +66,89 @@ const SAFE_WORDS = new Set([
   'hello', 'shell', 'hellenic',
   // Close to "dick"
   'dickens', 'dickenson', 'dickinson',
+  // Close to "fagging" (slur) — one-edit collisions at similarity 0.857-0.875
+  'flag', 'flags', 'flagged', 'flagging',
+  'frag', 'frags', 'fragged', 'fragging',
+  // Close to "shagging" — one-edit collisions at similarity 0.857-0.875
+  'sagging', 'sagged', 'sag', 'sags', 'saggy',
+  'snag', 'snags', 'snagged', 'snagging',
+  'slag', 'slags', 'slagged', 'slagging',
+  'stag', 'stags', 'stagging',
+  'swag', 'swagging',
+  // Close to "shitter/shitting/shitters/shittings" — one-edit collisions at similarity 0.857-0.875
+  'sit', 'sits', 'sitter', 'sitters', 'sitting', 'sittings',
+  'skit', 'skits', 'skitter', 'skitters',
+  'slit', 'slits', 'slitter', 'slitting',
+  'spit', 'spits', 'spitter', 'spitters', 'spitting',
+  'shifter', 'shifters', 'shifting', 'shiftings', 'shiftiest',
+  'shutting', 'shirting', 'shirtings', 'shirtiest',
+  // Close to "fisting" — one-edit collisions (all very common English)
+  'fasting', 'fishing', 'fitting', 'foisting', 'phishing',
+  // Close to "shagger" — one-edit collisions
+  'stagger', 'swagger', 'shaggier',
+  // Close to "strangle" — "strange" is among the most common English words
+  'strange', 'straggle',
+  // Close to "cracker" — "cracked" is very common
+  'cracked', 'cranker',
+  // Close to "bollocks" — "bullocks" is real (castrated bulls)
+  'bullocks', 'ballocks',
+  // Close to "bondage" — medical term
+  'bandage', 'bandages',
+  // Close to "bastard" — "bustard" is a bird; "bastardy" is legal term
+  'bustard', 'bustards', 'bastardy',
+  // Close to "bullshit" — "bullshot" is a cocktail
+  'bullshot',
+  // Close to "bugger" — "buggier" is adj form of buggy
+  'buggier',
+  // Close to "behead" — "bedhead" is a hairstyle
+  'bedhead',
+  // Close to "groomer" — "groomed" is extremely common
+  'groomed',
+  // Close to "inferior" — "interior" is very common
+  'interior', 'interiors',
+  // Close to "revolting" — "revolving" is very common
+  'revolving',
+  // Close to "scammer" — "scammed" is common
+  'scammed',
+  // Close to "shitload" — "shipload" is a real word
+  'shipload',
+  // Close to "tribadism" — "tribalism" is very common
+  'tribalism',
+  // Close to "blumpkin" — "bumpkin" is common
+  'bumpkin', 'bumpkins',
+  // Close to "tranny" — "tyranny" is very common
+  'tyranny',
+  // Close to "fagging" — "fogging" is event/industrial term
+  'fogging',
+  // Close to "frotting" — many common everyday words
+  'fretting', 'fritting', 'fronting', 'frosting', 'frothing',
+  // Close to "willies" — "wellies" (Wellington boots), "wallies" (British slang for idiots)
+  'wellies', 'wallies', 'willie',
+  // Close to "savages" — "salvages" is a business term
+  'salvages',
+  // Close to "jackass" — "jackals" is an animal
+  'jackals',
+  // Close to "shithole" — "shothole" is a mining/drilling term
+  'shothole',
+  // Close to "goatfucker" — "goatsucker" is a bird (nightjar)
+  'goatsucker',
+  // Close to "sickening" — "slickening" is a geological term
+  'slickening',
+  // Close to "splooge" — "splodge" is British for splotch
+  'splodge',
+  // Close to "raghead" — "rawhead" is folklore (goblin)
+  'rawhead',
+  // Close to "fingering" — "fingerling" is a baby fish / small potato
+  'fingerling', 'fingerlings',
+  // Close to "shitters" — "slitters" is a cutting tool
+  'slitters',
+  // Close to "cripple" — the verb form "cripples" is common in business/news
+  // ("cripples the economy"). Also "crimple" (to crumple), "crippler" (rare).
+  'cripples',
+  // Close to "shibari" — "shikari" is Indian English for hunter
+  'shikari',
+  // Close to "tribadism" — "triadism" is a music-theory term
+  'triadism',
   // Close to "tit"
   'titanic', 'titan', 'titrate', 'titbit',
   // Close to "damn"
