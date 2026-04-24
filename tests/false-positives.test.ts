@@ -95,6 +95,77 @@ describe('False Positives — Innocent Words', () => {
     'shattered', 'shattering', 'shuttered',
     // near "twink"
     'twinkle', 'twinkled', 'twinkles', 'twinkling',
+    // near "fagging" (one edit, similarity 0.857-0.875)
+    'flag', 'flags', 'flagged', 'flagging',
+    'frag', 'frags', 'fragged', 'fragging',
+    // near "shagging" (one edit, similarity 0.857-0.875)
+    'sag', 'sags', 'sagged', 'sagging', 'saggy',
+    'snag', 'snags', 'snagged', 'snagging',
+    'slag', 'slags', 'slagged', 'slagging',
+    'stag', 'stags',
+    'swag',
+    // near "shitter"/"shitting" (one edit, similarity 0.857-0.875)
+    'sit', 'sits', 'sitter', 'sitters', 'sitting', 'sittings',
+    'skit', 'skits', 'skitter', 'skitters',
+    'slit', 'slits', 'slitter', 'slitting',
+    'spit', 'spits', 'spitter', 'spitters', 'spitting',
+    'shifter', 'shifters', 'shifting', 'shutting',
+    // near "fisting" (common everyday words)
+    'fasting', 'fishing', 'fitting', 'foisting', 'phishing',
+    // near "shagger"
+    'stagger', 'swagger',
+    // near "strangle"
+    'strange', 'straggle',
+    // near "cracker"
+    'cracked',
+    // near "bollocks"
+    'bullocks',
+    // near "bondage"
+    'bandage', 'bandages',
+    // near "bastard"
+    'bustard', 'bastardy',
+    // near "bullshit"
+    'bullshot',
+    // near "bugger"
+    'buggier',
+    // near "behead"
+    'bedhead',
+    // near "groomer"
+    'groomed',
+    // near "inferior"
+    'interior', 'interiors',
+    // near "revolting"
+    'revolving',
+    // near "scammer"
+    'scammed',
+    // near "shitload"
+    'shipload',
+    // near "tribadism"
+    'tribalism',
+    // near "blumpkin"
+    'bumpkin',
+    // near "tranny"
+    'tyranny',
+    // near "fagging"
+    'fogging',
+    // near "frotting"
+    'fretting', 'fronting', 'frosting', 'frothing',
+    // near "willies"
+    'wellies', 'wallies',
+    // near "savages"
+    'salvages',
+    // near "jackass"
+    'jackals',
+    // near "fingering" — "fingerling" is a baby fish / small potato
+    'fingerling', 'fingerlings',
+    // near "shitters" — "slitters" is a cutting tool
+    'slitters',
+    // near "cripple" — "cripples" (verb) is common in news/business
+    'cripples',
+    // near "shibari"
+    'shikari',
+    // near "tribadism"
+    'triadism',
   ];
 
   const allInnocentWords = [
