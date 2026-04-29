@@ -75,6 +75,8 @@ const SAFE_WORDS = new Set([
   'slag', 'slags', 'slagged', 'slagging',
   'stag', 'stags', 'stagging',
   'swag', 'swagging',
+  // Close to "shit" — "sheet" is everyday English (bedsheet, spreadsheet, etc.)
+  'sheet', 'sheets',
   // Close to "shitter/shitting/shitters/shittings" — one-edit collisions at similarity 0.857-0.875
   'sit', 'sits', 'sitter', 'sitters', 'sitting', 'sittings',
   'skit', 'skits', 'skitter', 'skitters',
@@ -191,6 +193,178 @@ const SAFE_WORDS = new Set([
   'laughter',
   // Close to "lynch"
   'lynchburg', 'lynchpin',
+  // Close to "fuck" — common 1-edit and l33t-decode collisions
+  'duck', 'ducks', 'ducked', 'ducking', 'duckling', 'ducklings',
+  'luck', 'lucks', 'lucky', 'luckily', 'luckier', 'luckiest',
+  'muck', 'mucks', 'mucky', 'mucked', 'mucking',
+  'puck', 'pucks',
+  'buck', 'bucks', 'bucked', 'bucking', 'buckle', 'buckles',
+  'tuck', 'tucks', 'tucked', 'tucker', 'tucking',
+  'yuck', 'yucks', 'yucky',
+  'chuck', 'chucks', 'chucked', 'chucking',
+  'pluck', 'plucks', 'plucked', 'plucky', 'plucking',
+  'cluck', 'clucks', 'clucked', 'clucking',
+  'truck', 'trucks', 'trucked', 'trucker', 'trucking',
+  'shuck', 'shucks', 'shucked', 'shucking',
+  'stuck', 'struck',
+  'fuel', 'fuels', 'fueled', 'fueling', 'fueller',
+  'full', 'fully', 'fullness',
+  'fund', 'funds', 'funded', 'funder', 'funding',
+  'fuse', 'fuses', 'fused', 'fusing', 'fusion',
+  'fuzz', 'fuzzy', 'fuzzier',
+  // Close to "fucking" — 1-sub at first char, very common -ing words
+  'ducking', 'mucking', 'tucking', 'bucking', 'lucking',
+  'chucking', 'plucking', 'clucking', 'trucking', 'shucking',
+  // Close to "bitch" — 1-sub at first char, common everyday words
+  'ditch', 'ditches', 'ditched', 'ditching',
+  'pitch', 'pitches', 'pitched', 'pitcher', 'pitchers', 'pitching',
+  'hitch', 'hitches', 'hitched', 'hitching', 'hitchhike',
+  'witch', 'witches', 'witchy', 'witching', 'witchcraft',
+  'stitch', 'stitches', 'stitched', 'stitching',
+  'birch', 'birches',
+  'fitch',
+  // Close to "bitching"/"bitchy" — -ing/-y forms
+  'pitchy', 'witchy', 'itchy',
+  // Close to "crap" — common 1-edit consonant swaps
+  'crab', 'crabs', 'crabby', 'crabbier',
+  'trap', 'traps', 'trapped', 'trapper', 'trapping',
+  'wrap', 'wraps', 'wrapped', 'wrapper', 'wrapping',
+  'carp', 'carps', 'carping',
+  'scrap', 'scraps', 'scrapped', 'scrappy', 'scrapping',
+  'cramp', 'cramps', 'cramped', 'cramping',
+  'chap', 'chaps', 'chapped',
+  'clap', 'claps', 'clapped', 'clapping', 'clapper',
+  // Close to "crappy" — common -y adjectives
+  'snappy', 'sloppy', 'choppy',
+  // Close to "piss" — 1-sub neighbours; "pissed/pisser" -> passed/kisser etc.
+  'pass', 'passes', 'passed', 'passer', 'passing', 'passport',
+  'miss', 'misses', 'missed', 'missing', 'mission',
+  'kiss', 'kisses', 'kissed', 'kisser', 'kissing',
+  'boss', 'bosses', 'bossed', 'bossing', 'bossy',
+  'bass', 'basses',
+  'hiss', 'hisses', 'hissed', 'hissing',
+  'fuss', 'fussed', 'fussing', 'fussy',
+  // Close to "whore" — 1-sub/1-insert neighbours
+  'where', 'whose', 'whole', 'while',
+  'shore', 'shores', 'shored',
+  'snore', 'snores', 'snored', 'snoring',
+  'swore',
+  'chore', 'chores',
+  // ("whored" intentionally NOT safelisted — it is the verb form of "whore")
+  // Close to "slut" — 1-sub neighbours; "slot/shut/salt"
+  'slot', 'slots', 'slotted', 'slotting',
+  'slat', 'slats', 'slatted',
+  'shut', 'shuts', 'shutting',
+  'salt', 'salts', 'salted', 'salting', 'salty',
+  // Close to "slutty" — 1-sub at pos 1
+  'snotty', 'spotty', 'slatty',
+  // Close to "prick" — 1-sub at first char
+  'brick', 'bricks', 'bricked', 'bricking',
+  'trick', 'tricks', 'tricked', 'tricky', 'trickster',
+  'crick', 'cricks',
+  // Close to "wanker" — 1-sub at first char (banker/hanker/tanker)
+  'banker', 'bankers', 'banking', 'banked',
+  'hanker', 'hankered', 'hankering',
+  'tanker', 'tankers',
+  'yanker',
+  // Close to "fart" — 1-sub at first char (cart/dart/mart/part/tart)
+  'cart', 'carts', 'carted', 'carting', 'carter',
+  'dart', 'darts', 'darted', 'darting',
+  'mart', 'marts',
+  'part', 'parts', 'parted', 'parting', 'partly', 'partner',
+  'tart', 'tarts', 'tartly',
+  'hart', 'harts',
+  'wart', 'warts', 'warty',
+  // Close to "turd" — 1-sub at last char or first char
+  'turf', 'turfs', 'turfy',
+  'turn', 'turns', 'turned', 'turning', 'turner',
+  'curd', 'curds',
+  // Close to "boob" — 1-sub at last char (book/boom/boon/boot)
+  'book', 'books', 'booked', 'booking',
+  'boom', 'booms', 'boomed', 'booming',
+  'boon', 'boons',
+  'boot', 'boots', 'booted', 'booting',
+  'boor', 'boors', 'boorish',
+  // Close to "swine" — 1-sub at first char (spine/shine/twine/whine)
+  'spine', 'spines', 'spinal',
+  'shine', 'shines', 'shined', 'shining', 'shiny',
+  'twine', 'twines', 'twined', 'twining',
+  'whine', 'whines', 'whined', 'whining', 'whiny',
+  'wine', 'wines',
+  'shrine', 'shrines',
+  // Close to "dumb" — 1-sub at last char or 1-sub at first
+  'dump', 'dumps', 'dumped', 'dumping', 'dumpster',
+  'thumb', 'thumbs', 'thumbed',
+  'drum', 'drums', 'drummed', 'drumming', 'drummer',
+  'numb', 'numbed', 'numbing', 'number',
+  'crumb', 'crumbs', 'crumbly',
+  // Close to "filth" — 1-sub neighbours (fifth/faith/filch)
+  'fifth', 'fifths',
+  'faith', 'faiths', 'faithful',
+  'filch', 'filched', 'filching',
+  // Close to "maggot" — "magnet" is 1-sub g→n? actually 2 edits; safelist anyway
+  'magnet', 'magnets', 'magnetic',
+  // Close to "vermin" — "vermil" rare; "termini" 2 edits; safelist plurals only
+  // (skip — no safe near-neighbours common enough to safelist)
+  // Close to "pansy" — "pansies" only; "patsy" is 1-sub n→t
+  'patsy', 'patsies', 'pansies',
+  // Close to "tramp" — "trump/tramps/tromp" — keep "trump" safelisted (proper noun usage)
+  'trump', 'trumps', 'trumped', 'trumping', 'trumpet',
+  'tromp', 'tromped',
+  // Close to "scum" — "scud/scud-" weather term; "scuff/scull"
+  'scud', 'scuds',
+  'scuff', 'scuffs', 'scuffed', 'scuffing',
+  'scull', 'sculls', 'sculling',
+  // Close to "moron" — "matron" 2 edits; "mormon" already; add "macron/marlon"
+  'macron', 'macrons',
+  // Close to "loser" / "fool" — already covered
+  // Close to "creep" — "creel" rare; "crepe" 1-sub p→p... already covered with creek
+  'crepe', 'crepes',
+  // Close to "smut" — "snug/snub/smug"
+  'smug', 'smugly', 'smugness',
+  'snug', 'snugly', 'snugger',
+  'snub', 'snubs', 'snubbed',
+  // Close to "knob" — "snob/knot/know/knew"
+  'snob', 'snobs', 'snobby',
+  'knot', 'knots', 'knotted', 'knotting',
+  // Close to "feck" — "fec" not English; "deck/heck/neck/peck"
+  'deck', 'decks', 'decked', 'decking',
+  'heck',
+  'neck', 'necks', 'necked', 'necking',
+  'peck', 'pecks', 'pecked', 'pecking',
+  // Close to "puto" (Spanish) — handled in Spanish section; English "puto" rare
+  // Close to "cuck" — "cock" already in dict; "buck/duck/luck/muck/puck/tuck" already above
+  // Close to "porn" — "pork/porn/pore/born/corn/horn/morn/torn/worn"
+  'pork', 'porks', 'porky',
+  'pore', 'pores', 'pored', 'poring',
+  'born',
+  'corn', 'corns', 'corny', 'corner',
+  'horn', 'horns', 'horned', 'hornet',
+  'morn', 'morns',
+  'torn',
+  'worn',
+  // Close to "rape" — already covered with drape/grape/scrape; add "ripe/rope/rare/race/rage/rate"
+  'ripe', 'riper', 'ripest', 'ripen',
+  'rage', 'raged', 'rages', 'raging',
+  'rare', 'rarer', 'rarely',
+  'race', 'races', 'raced', 'racing', 'racer',
+  'rate', 'rates', 'rated', 'rating',
+  'rave', 'raves', 'raved', 'raving',
+  // Close to "rapist" — common: "racist" (different slur, IS flagged elsewhere), "rapids", "tapist"
+  'rapids',
+  // Close to "molest" — "modest/modesty/forest/locust/honest"
+  'modest', 'modestly', 'modesty',
+  'forest', 'forests', 'forester',
+  'honest', 'honestly', 'honesty',
+  // Close to "stab" — already covered with stable/stability/establish; add "stag" (already), "scab"
+  'scab', 'scabs', 'scabbed',
+  // Close to "kill" — already covered
+  // Close to "haji" — "hajj" pilgrimage IS a religious term, leave; add "haiku/hadji-allowed-religious"
+  'hajj', 'hajji', 'hadj',  // pilgrim terms — religious, distinct from slur "haji"
+  'haiku', 'haikus',
+  // Close to "incel" — "uncle/intel/install"
+  'uncle', 'uncles',
+  'intel',
   // ── Spanish collisions (accent-stripped forms that collide with dictionary) ──
   // "coño" normalizes to "cono" which is also Spanish for "cone"
   'cono', 'conos',
