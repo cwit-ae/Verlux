@@ -104,6 +104,8 @@ describe('False Positives — Innocent Words', () => {
     'slag', 'slags', 'slagged', 'slagging',
     'stag', 'stags',
     'swag',
+    // near "shit" — "sheet" is everyday English (bedsheet, spreadsheet)
+    'sheet', 'sheets',
     // near "shitter"/"shitting" (one edit, similarity 0.857-0.875)
     'sit', 'sits', 'sitter', 'sitters', 'sitting', 'sittings',
     'skit', 'skits', 'skitter', 'skitters',
@@ -166,6 +168,140 @@ describe('False Positives — Innocent Words', () => {
     'shikari',
     // near "tribadism"
     'triadism',
+    // near "fuck" — 1-sub at first char, plus fu- words
+    'duck', 'ducks', 'ducking', 'duckling',
+    'luck', 'lucky', 'luckily',
+    'muck', 'mucky', 'mucking',
+    'buck', 'bucks', 'buckle',
+    'tuck', 'tucker', 'tucking',
+    'yuck', 'yucky',
+    'chuck', 'chucking',
+    'pluck', 'plucky',
+    'cluck', 'clucking',
+    'truck', 'trucker', 'trucking',
+    'shuck', 'shucks',
+    'stuck', 'struck',
+    'fuel', 'fuels', 'fueled',
+    'full', 'fully',
+    'fund', 'funds', 'funded', 'funding',
+    'fuse', 'fused', 'fusion',
+    'fuzz', 'fuzzy',
+    // near "fucking" — -ing forms
+    'ducking', 'mucking', 'tucking', 'chucking', 'plucking', 'trucking',
+    // near "bitch" — 1-sub at first char
+    'ditch', 'pitch', 'hitch', 'witch', 'stitch', 'birch',
+    'ditches', 'pitcher', 'witches', 'stitches',
+    'pitching', 'hitching', 'witching', 'stitching',
+    'pitchy', 'itchy',
+    // near "crap" — 1-sub consonant swaps
+    'crab', 'crabs', 'crabby',
+    'trap', 'traps', 'trapped', 'trapping',
+    'wrap', 'wraps', 'wrapper', 'wrapping',
+    'carp', 'carps',
+    'scrap', 'scrappy', 'scrapping',
+    'cramp', 'cramps', 'cramped',
+    'chap', 'chaps',
+    'snappy', 'sloppy', 'choppy',
+    // near "piss" — 1-sub neighbours
+    'pass', 'passed', 'passing', 'passport',
+    'miss', 'missed', 'missing', 'mission',
+    'kiss', 'kissed', 'kisser', 'kissing',
+    'boss', 'bossy',
+    'bass',
+    'hiss', 'hissed', 'hissing',
+    'fuss', 'fussy',
+    // near "whore" — 1-sub/1-insert neighbours
+    'where', 'whose', 'whole', 'while',
+    'shore', 'shored',
+    'snore', 'snoring',
+    'swore',
+    'chore', 'chores',
+    // near "slut" — 1-sub neighbours
+    'slot', 'slots', 'slotted',
+    'slat', 'slats',
+    'shut',
+    'salt', 'salted', 'salty',
+    'snotty', 'spotty',
+    // near "prick" — 1-sub at first char
+    'brick', 'bricks',
+    'trick', 'tricks', 'tricky', 'trickster',
+    'crick',
+    // near "wanker" — 1-sub at first char
+    'banker', 'banking',
+    'hanker', 'hankering',
+    'tanker', 'tankers',
+    // near "fart" — 1-sub at first char
+    'cart', 'carts', 'carting',
+    'dart', 'darts',
+    'mart',
+    'part', 'parts', 'parted', 'parting', 'partner',
+    'tart', 'tarts',
+    'hart',
+    'wart', 'warts',
+    // near "turd" — 1-sub neighbours
+    'turf', 'turn', 'turned', 'turning',
+    'curd', 'curds',
+    // near "boob" — 1-sub at last char
+    'book', 'booked', 'booking',
+    'boom', 'booming',
+    'boon',
+    'boot', 'boots', 'booting',
+    'boor', 'boorish',
+    // near "swine" — 1-sub at first char
+    'spine', 'spinal',
+    'shine', 'shining', 'shiny',
+    'twine',
+    'whine', 'whining', 'whiny',
+    'wine', 'wines',
+    'shrine',
+    // near "dumb" — 1-sub neighbours
+    'dump', 'dumped', 'dumping', 'dumpster',
+    'thumb', 'thumbs',
+    'drum', 'drummer', 'drumming',
+    'numb', 'number',
+    'crumb', 'crumbs',
+    // near "filth" — 1-sub neighbours
+    'fifth', 'faith', 'faithful',
+    'filch', 'filched',
+    // near "porn" — 1-sub at last char
+    'pork', 'porky',
+    'pore', 'pored',
+    'born', 'corn', 'corner', 'horn', 'hornet',
+    'morn', 'torn', 'worn',
+    // near "rape" — 1-sub at last char
+    'ripe', 'ripen',
+    'rage', 'raged', 'raging',
+    'rare', 'rarer', 'rarely',
+    'race', 'racing', 'racer',
+    'rate', 'rated', 'rating',
+    'rave', 'raves', 'raving',
+    'rapids',
+    // near "molest" — 1-sub at first char
+    'modest', 'modesty',
+    'forest', 'forests',
+    'honest', 'honestly',
+    // near "pansy" — 1-sub neighbours
+    'patsy', 'pansies',
+    // near "tramp" — 1-sub at last char
+    'trump', 'trumped', 'trumpet',
+    'tromp',
+    // near "scum" — 1-sub at last char
+    'scud', 'scuff', 'scuffed', 'scull',
+    // near "smut" — 1-sub neighbours
+    'smug', 'snug', 'snub',
+    // near "knob" — 1-sub neighbours
+    'snob', 'knot', 'knots', 'knotted',
+    // near "feck" — 1-sub at first char
+    'deck', 'decked',
+    'heck',
+    'neck', 'necks',
+    'peck', 'pecks',
+    // near "haji" — distinguish religious pilgrim terms from slur
+    'hajj', 'hajji', 'hadj',
+    'haiku',
+    // near "incel" — 1-sub neighbours
+    'uncle', 'uncles',
+    'intel',
   ];
 
   const allInnocentWords = [
