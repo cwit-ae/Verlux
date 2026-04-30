@@ -12,11 +12,11 @@
 <h1 align="center">Verlux</h1>
 
 <p align="center">
-  <strong>Multilingual profanity and abusive-language detection with fuzzy matching, transliteration, and phrase detection.</strong>
+  <strong>Profanity and abusive-language detection across English, Hinglish, Spanish, French, and German — every loaded language scanned simultaneously in a single pass, with no per-call language hint required, including inputs that mix multiple languages within one sentence.</strong>
 </p>
 
 <p align="center">
-  Designed for content moderation, trust and safety workflows, and customer communication platforms.<br/>
+  Fuzzy matching, transliteration, and phrase detection. Designed for content moderation, trust and safety workflows, and customer communication platforms.<br/>
   Zero runtime dependencies. Fully offline. Resilient to common obfuscation techniques.
 </p>
 
@@ -26,6 +26,7 @@
 
 - [Notice and Intended Use](#notice-and-intended-use)
 - [Overview](#overview)
+- [Comparison with Other npm Packages](#comparison-with-other-npm-packages)
 - [Installation](#installation)
 - [Quick Start](#quick-start)
 - [API Reference](#api-reference)
@@ -64,7 +65,9 @@ By installing or using this package, you acknowledge that you have read this not
 
 ## Overview
 
-Dictionary-based profanity filters typically fail in two directions. Overly aggressive filters flag innocuous text such as _Scunthorpe_, _assistant_, or _classic_. Naïve filters miss common obfuscations such as punctuation-separated, leet-substituted, or character-repeated variants of profane terms. Verlux is designed to address both failure modes within a single, deterministic, offline pipeline.
+Verlux scans every loaded language pack in a single pass, surfacing matches across English, Hinglish, Spanish, French, and German — including inputs that mix several languages within one sentence — with no per-call language hint required. The `languages` configuration option exists only for the inverse case: applications that wish to *narrow* detection to a subset of loaded packs (for example, an English-only forum that wants to ignore Spanish profanity). The default is to detect everything that has been loaded.
+
+Beyond multilingual coverage, dictionary-based profanity filters typically fail in two directions. Overly aggressive filters flag innocuous text such as _Scunthorpe_, _assistant_, or _classic_. Naïve filters miss common obfuscations such as punctuation-separated, leet-substituted, or character-repeated variants of profane terms. Verlux is designed to address both failure modes within a single, deterministic, offline pipeline.
 
 | Challenge                                                                   | How Verlux addresses it                                                                 |
 | --------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
@@ -77,6 +80,32 @@ Dictionary-based profanity filters typically fail in two directions. Overly aggr
 | Multi-word phrase detection                                                 | N-gram windowing that captures common multi-word abusive expressions                    |
 | Mixed-language input                                                        | Automatic detection across every loaded dictionary, with no language hint required      |
 | Business-safe vocabulary                                                    | Includes safelists and phrase rules for common benign business expressions; uncovered idioms can be added at integration time via `whitelist` |
+
+---
+
+## Comparison with Other npm Packages
+
+The table below compares Verlux against the three most-downloaded npm profanity-detection packages — `bad-words`, `obscenity`, and `@2toad/profanity` — based on each package's README, npm metadata, and source repository as of 2026-04-30. A cell reads ✅ where the capability is documented and shipped out of the box, ⚠️ where it is partial or requires per-call configuration, ❌ where the package's public API or return types confirm the feature is absent, and "not documented" where upstream materials do not address the capability either way.
+
+| Capability                                                         | **Verlux**                  | `bad-words`                              | `obscenity`                                  | `@2toad/profanity`                                            |
+| ------------------------------------------------------------------ | --------------------------- | ---------------------------------------- | -------------------------------------------- | ------------------------------------------------------------- |
+| Approximate weekly downloads (npm)                                 | —                           | 205k                                     | 131k                                         | 125k                                                          |
+| Languages shipped out of the box                                   | 5 (en, hi-latn, es, fr, de) | 1 (en)                                   | 1 (en)                                       | 12 (native script)                                            |
+| Detects multiple languages in one call without enumerating them    | ✅                          | n/a (single language)                    | n/a (single language)                        | ❌ caller must pass an explicit language array on every call |
+| Romanized Hindi (Hinglish) wordlist shipped                        | ✅                          | ❌                                       | ❌                                           | ❌ (Devanagari list only)                                    |
+| Devanagari → Latin transliteration in the detection pipeline       | ✅                          | ❌                                       | ❌                                           | ❌                                                            |
+| Obfuscation handling (leet, separator stripping, repetition collapse) | ✅                       | ⚠️ basic symbol substitution only        | ✅                                           | not documented                                                |
+| Levenshtein-based fuzzy matching                                   | ✅                          | ❌                                       | ❌ (uses regex variant patterns instead)     | ❌                                                            |
+| Multi-word phrase detection documented                             | ✅                          | not documented                           | ✅                                           | not documented                                                |
+| Returns severity tier per match (low / medium / high)              | ✅                          | ❌                                       | ❌                                           | ❌                                                            |
+| Returns category per match (slur, sexual, threat, …)               | ✅                          | ❌                                       | ❌                                           | ❌                                                            |
+| Returns toxicity score with category breakdown                     | ✅                          | ❌                                       | ❌                                           | ❌                                                            |
+| Runtime dependencies                                               | 0                           | 1                                        | 0                                            | 0                                                             |
+| First-class TypeScript types                                       | ✅                          | ✅                                       | ✅                                           | ✅                                                            |
+
+`@2toad/profanity` ships substantially more native-script wordlists than any other package in this set (12 versus Verlux's 5) and is the only other package here that supports more than one language out of the box; its matches do not carry severity or category metadata, however, and the caller must enumerate the desired languages on every call. `obscenity` provides comparable obfuscation handling for English and is widely used for English-only deployments; its `MatchPayload` return type does not include severity or category. `bad-words` is English-only and oriented toward simple censoring rather than analytical moderation. Relative to this set, Verlux's distinguishing properties are: automatic multi-language scanning without a per-call hint, romanized-Hindi (Hinglish) coverage with Devanagari transliteration, severity- and category-tagged matches with a derived toxicity score, and Levenshtein-based fuzzy matching.
+
+> Comparisons are derived from each package's published documentation, npm metadata, and source repository as of the date noted above. ❌ reflects features whose absence is confirmed by the public API or return types; "not documented" reflects capabilities that upstream materials do not address either way and that we have not independently verified to be present or absent. Consumers are encouraged to re-verify against the latest upstream releases before relying on these figures.
 
 ---
 
@@ -95,19 +124,19 @@ Verlux requires Node.js 18 or later and is published as both CommonJS and ES Mod
 ```ts
 import { verlux } from "verlux";
 
-// Detect abusive words — scans all loaded languages automatically
-const results = verlux.detect("<obfuscated abusive input>");
-// [
-//   { matched: '<canonical term>', severity: 'high',   category: 'sexual', ... },
-//   { matched: '<canonical term>', severity: 'medium', category: 'insult', ... }
-// ]
-
-// Mixed-language input is supported without any language hint
-verlux.detect("<English + Spanish + Hinglish abuse>");
+// Mixed-language input — every loaded language scanned in one call, no hint required
+const results = verlux.detect("<English + Spanish + Hinglish abuse>");
 // [
 //   { matched: '<term>', language: 'en',      ... },
 //   { matched: '<term>', language: 'es',      ... },
 //   { matched: '<term>', language: 'hi-latn', ... }
+// ]
+
+// Single-language input works the same way — no configuration required
+verlux.detect("<obfuscated abusive input>");
+// [
+//   { matched: '<canonical term>', severity: 'high',   category: 'sexual', ... },
+//   { matched: '<canonical term>', severity: 'medium', category: 'insult', ... }
 // ]
 
 // Spanish with or without diacritics, including multi-word phrases
@@ -338,7 +367,7 @@ Measured on commodity developer hardware with the full multi-language index load
 | Cold start                    | Under 50 ms                                                         |
 | Memory footprint              | Approximately 2 MB                                                  |
 | Runtime dependencies          | 0                                                                   |
-| Test suite                    | 735 tests passing                                                   |
+| Test suite                    | 769 tests passing                                                   |
 
 > **Disclaimer.** All figures above are reported on the datasets, hardware, and Node.js versions available at the time of publication. They are provided for informational purposes only and do not constitute a guarantee of performance or accuracy for any specific production workload. Consumers are strongly encouraged to validate Verlux against their own representative data before relying on it in critical systems.
 
