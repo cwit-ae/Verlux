@@ -113,9 +113,44 @@ const SINGLE_MAP: Record<string, string> = {
 };
 
 // ─────────────────────────────────────────────
-// INVISIBLE UNICODE CHARS REGEX (pre-compiled)
+// INVISIBLE UNICODE CHARS REGEX + CONFUSABLES (pre-compiled)
 // ─────────────────────────────────────────────
 const INVISIBLE_RE = /[\u200B-\u200F\u2028-\u202F\u2060-\u2069\uFEFF\u00AD\u034F\u17B4\u17B5\u180E\uFFF0-\uFFFF]/g;
+
+// Confusables — Cyrillic/Greek codepoints that visually impersonate Latin
+// letters. Folded so obfuscated profanity like "fuсk" (Cyrillic U+0441 in
+// place of Latin 'c') matches the dictionary. Safe to fold globally because
+// every shipped dictionary uses Latin script.
+const CONFUSABLES: Record<string, string> = {
+  // Cyrillic lower
+  'а': 'a', 'е': 'e', 'о': 'o', 'р': 'p',
+  'с': 'c', 'у': 'y', 'х': 'x', 'і': 'i',
+  'ј': 'j', 'ѕ': 's', 'ӏ': 'l',
+  // Cyrillic upper
+  'А': 'A', 'В': 'B', 'Е': 'E', 'Н': 'H',
+  'К': 'K', 'М': 'M', 'О': 'O', 'Р': 'P',
+  'С': 'C', 'Т': 'T', 'Х': 'X', 'І': 'I',
+  'Ј': 'J',
+  // Greek lower (τ omitted — collides with legitimate tau usage)
+  'α': 'a', 'ο': 'o', 'ρ': 'p', 'ν': 'v',
+  'ι': 'i', 'κ': 'k',
+  // Greek upper
+  'Α': 'A', 'Β': 'B', 'Ε': 'E', 'Ζ': 'Z',
+  'Η': 'H', 'Ι': 'I', 'Κ': 'K', 'Μ': 'M',
+  'Ν': 'N', 'Ο': 'O', 'Ρ': 'P', 'Τ': 'T',
+  'Υ': 'Y', 'Χ': 'X',
+};
+
+// Orphan combining marks — base character + combining strikethrough/overlay/
+// dot/etc. is a common obfuscation (e.g. "f̸u̸c̸k̸"). NFKC won't compose these
+// because there's no precomposed equivalent for `f` + U+0338. Strip them
+// before tokenization so the base letters fuse into one token.
+//
+// Ranges covered: Combining Diacritical Marks (and Extended/Supplement),
+// Combining Marks for Symbols, Combining Half Marks. Excludes Devanagari /
+// Arabic / Hebrew combining marks, which sit in their own blocks and belong
+// to legitimate words in those scripts.
+const COMBINING_MARK_RE = /[̀-ͯ᪰-᫿᷀-᷿⃐-⃿︠-︯]/;
 
 // ─────────────────────────────────────────────
 // ALL-DIGITS SHORT-CIRCUIT
@@ -138,6 +173,87 @@ const SEPARATOR_RE = new RegExp(
 );
 
 /**
+ * True iff every codepoint in `s` is plain ASCII (≤ 0x7F). Pure-ASCII inputs
+ * cannot contain any of the obfuscation forms `unicodeFold` exists to handle,
+ * so this check unlocks fast paths in both `unicodeFold` and `normalize`.
+ *
+ * Implemented as a tight charCodeAt loop — much cheaper than NFKC or regex.
+ */
+function isAscii(s: string): boolean {
+  for (let i = 0; i < s.length; i++) {
+    if (s.charCodeAt(i) > 127) return false;
+  }
+  return true;
+}
+
+/**
+ * Text-only fold (no indexMap). Used by `normalize()` where the index map
+ * would be allocated and immediately discarded.
+ */
+function foldText(input: string): string {
+  if (isAscii(input)) return input;
+  let folded = '';
+  for (const codepoint of input) {
+    if (COMBINING_MARK_RE.test(codepoint)) continue;
+    folded += (CONFUSABLES[codepoint] ?? codepoint).normalize('NFKC');
+  }
+  return folded;
+}
+
+/**
+ * Fold Unicode obfuscations into ASCII-equivalent forms while tracking the
+ * original-string index of every output character. This is the front door for
+ * detection: tokenization and matching run on the folded text, then result
+ * positions are mapped back to the original via the returned indexMap.
+ *
+ * Folds applied (per codepoint):
+ *  - Confusables: Cyrillic/Greek letters that visually impersonate Latin
+ *    (e.g. Cyrillic 'а' U+0430 → 'a').
+ *  - NFKC compatibility decomposition: fullwidth (Ｆｕｃｋ → Fuck),
+ *    mathematical alphanumeric (𝐟𝐮𝐜𝐤 → fuck), ligatures (ﬁ → fi), etc.
+ *
+ * The indexMap has length `folded.length + 1`. For any folded slice
+ * [start, end), the corresponding original slice is
+ * [indexMap[start], indexMap[end]).
+ *
+ * Fast path: pure-ASCII input returns an identity index map without entering
+ * the per-codepoint loop. Callers that already detect ASCII can skip this
+ * entirely.
+ */
+export function unicodeFold(input: string): { text: string; indexMap: number[] } {
+  if (isAscii(input)) {
+    const indexMap = new Array<number>(input.length + 1);
+    for (let i = 0; i <= input.length; i++) indexMap[i] = i;
+    return { text: input, indexMap };
+  }
+
+  let folded = '';
+  const indexMap: number[] = [];
+  let originalIdx = 0;
+
+  for (const codepoint of input) {
+    const cpLength = codepoint.length; // 1 or 2 UTF-16 units
+    // Combining marks are dropped — they yield no folded characters but
+    // still consume their original-string slot so subsequent indexMap
+    // entries point past them.
+    if (COMBINING_MARK_RE.test(codepoint)) {
+      originalIdx += cpLength;
+      continue;
+    }
+    const mapped = (CONFUSABLES[codepoint] ?? codepoint).normalize('NFKC');
+    folded += mapped;
+    for (let k = 0; k < mapped.length; k++) {
+      indexMap.push(originalIdx);
+    }
+    originalIdx += cpLength;
+  }
+  // Sentinel so positions [start, folded.length] are valid for end mapping.
+  indexMap.push(originalIdx);
+
+  return { text: folded, indexMap };
+}
+
+/**
  * Normalize a string by applying all transformations.
  * Returns the cleaned, lowercase form.
  *
@@ -150,7 +266,9 @@ const SEPARATOR_RE = new RegExp(
  * 6. Strip separators between chars
  */
 export function normalize(input: string): string {
-  let text = input.toLowerCase();
+  // Step 0: Fold confusables + NFKC. `foldText` is a no-op fast path for
+  // pure-ASCII input, so the common case pays only an isAscii scan.
+  let text = foldText(input).toLowerCase();
 
   // Step 1: Strip invisible chars
   text = text.replace(INVISIBLE_RE, '');
@@ -186,7 +304,8 @@ export function normalizeVariants(input: string): string[] {
   variants.add(aggressive);
 
   // No-collapse variant (some words have legit doubles)
-  let noCollapse = input.toLowerCase();
+  const folded = foldText(input);
+  let noCollapse = folded.toLowerCase();
   noCollapse = noCollapse.replace(INVISIBLE_RE, '');
   if (!ALL_DIGITS_RE.test(noCollapse)) {
     noCollapse = decodeMultiChar(noCollapse);
@@ -195,8 +314,9 @@ export function normalizeVariants(input: string): string[] {
   noCollapse = noCollapse.replace(SEPARATOR_RE, '');
   variants.add(noCollapse.trim());
 
-  // Strip everything non-alphanumeric
-  variants.add(input.toLowerCase().replace(/[^a-z0-9]/g, '').trim());
+  // Strip everything non-alphanumeric (operates on the folded form so that
+  // mathematical-alphabet / fullwidth obfuscations survive the strip).
+  variants.add(folded.toLowerCase().replace(/[^a-z0-9]/g, '').trim());
 
   return [...variants].filter(v => v.length > 0);
 }

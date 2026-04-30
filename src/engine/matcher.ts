@@ -10,7 +10,7 @@ import type {
   Severity,
   PhraseEntry,
 } from '../types.js';
-import { normalize, normalizeVariants } from './normalizer.js';
+import { normalize, normalizeVariants, unicodeFold } from './normalizer.js';
 import { tokenize, phraseWindows, Token } from './tokenizer.js';
 import { bestFuzzyMatch } from './fuzzy.js';
 import { transliterate } from './transliterator.js';
@@ -365,6 +365,16 @@ const SAFE_WORDS = new Set([
   // Close to "incel" — "uncle/intel/install"
   'uncle', 'uncles',
   'intel',
+  // ── Exact-alias collisions with brand / tech / biology / engineering terms ──
+  // These are aliases of slur/profanity entries whose benign meaning dominates
+  // in normal professional or descriptive text. The canonical slur form is left
+  // detectable; only the colliding alias spelling is excused.
+  'mongo',     // MongoDB shorthand (alias of `mongoloid`)
+  'coke',      // Coca-Cola / soft drink (alias of `cocaine`)
+  'heron',     // bird species (alias of `heroin`)
+  'nike',      // Nike brand (alias of French `niquer`)
+  'dike',      // civil-engineering / geological term for an embankment or rock intrusion (alias of `dyke`)
+  'pouf',      // upholstered footstool / furniture term (alias of `poofter`)
   // ── Spanish collisions (accent-stripped forms that collide with dictionary) ──
   // "coño" normalizes to "cono" which is also Spanish for "cone"
   'cono', 'conos',
@@ -534,12 +544,20 @@ export function buildIndex(entries: DictionaryEntry[], phrases: PhraseEntry[] = 
 
 /**
  * Main detection function. Takes text and returns all detected profanity.
+ *
+ * The input is first folded through `unicodeFold` so that confusable
+ * codepoints (Cyrillic/Greek look-alikes) and NFKC-equivalent forms
+ * (fullwidth, mathematical alphanumerics, ligatures) are normalized to ASCII
+ * before tokenization. After detection, result positions are mapped back to
+ * indices in the *original* input via the fold's index map, and `original`
+ * is sliced from the original input — preserving the API contract.
  */
 export function detect(
-  input: string,
+  originalInput: string,
   index: DictionaryIndex,
   config: ResolvedConfig
 ): DetectionResult[] {
+  const { text: input, indexMap } = unicodeFold(originalInput);
   const results: DetectionResult[] = [];
   const tokens = tokenize(input);
 
@@ -581,7 +599,21 @@ export function detect(
   }
 
   // Deduplicate overlapping results (keep highest confidence)
-  return deduplicateResults(results);
+  const deduped = deduplicateResults(results);
+
+  // Fast path: when the input was already ASCII-canonical the fold is a
+  // no-op and indices line up, so we can skip the remap pass.
+  if (input === originalInput) return deduped;
+
+  return deduped.map(r => {
+    const origStart = indexMap[r.position[0]];
+    const origEnd = indexMap[r.position[1]];
+    return {
+      ...r,
+      position: [origStart, origEnd] as [number, number],
+      original: originalInput.slice(origStart, origEnd),
+    };
+  });
 }
 
 interface RawSegment {
