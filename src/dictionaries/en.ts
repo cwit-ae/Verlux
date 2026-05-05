@@ -292,6 +292,24 @@ export const EN_WORDS: DictionaryEntry[] = [
     allowPartialMatch: false,
     aliases: ["heeb"],
   },
+  {
+    word: "jewboy",
+    normalized: ["j3wboy", "jewb0y"],
+    language: "en",
+    severity: "high",
+    category: "slur",
+    allowPartialMatch: false,
+    aliases: ["jew boy", "jewboys"],
+  },
+  {
+    word: "christkiller",
+    normalized: [],
+    language: "en",
+    severity: "high",
+    category: "slur",
+    allowPartialMatch: false,
+    aliases: ["christ killer", "christ-killer", "christkillers"],
+  },
 
   // --- Anti-White ---
   {
@@ -320,6 +338,33 @@ export const EN_WORDS: DictionaryEntry[] = [
     category: "slur",
     allowPartialMatch: false,
     aliases: ["pecker wood"],
+  },
+  {
+    word: "wigger",
+    normalized: ["w1gger", "wigg3r"],
+    language: "en",
+    severity: "high",
+    category: "slur",
+    allowPartialMatch: false,
+    aliases: ["wiggers", "whigger"],
+  },
+  {
+    word: "whitey",
+    normalized: ["wh1tey", "whit3y"],
+    language: "en",
+    severity: "medium",
+    category: "slur",
+    allowPartialMatch: false,
+    aliases: ["whities", "whiteys"],
+  },
+  {
+    word: "paleface",
+    normalized: ["palef4ce"],
+    language: "en",
+    severity: "medium",
+    category: "slur",
+    allowPartialMatch: false,
+    aliases: ["pale face", "palefaces"],
   },
 
   // --- Anti-European ---
@@ -358,6 +403,33 @@ export const EN_WORDS: DictionaryEntry[] = [
     category: "slur",
     allowPartialMatch: false,
     aliases: ["micks"],
+  },
+  {
+    word: "polack",
+    normalized: ["p0lack", "pol4ck"],
+    language: "en",
+    severity: "high",
+    category: "slur",
+    allowPartialMatch: false,
+    aliases: ["polacks", "pollack", "pollacks"],
+  },
+  {
+    word: "russki",
+    normalized: ["rus5ki"],
+    language: "en",
+    severity: "medium",
+    category: "slur",
+    allowPartialMatch: false,
+    aliases: ["russkie", "russkies", "ruski", "ruskie", "ruskies"],
+  },
+  {
+    word: "wog",
+    normalized: ["w0g"],
+    language: "en",
+    severity: "high",
+    category: "slur",
+    allowPartialMatch: false,
+    aliases: ["wogs"],
   },
 
   // --- Anti-Native American ---
@@ -418,6 +490,64 @@ export const EN_WORDS: DictionaryEntry[] = [
     category: "slur",
     allowPartialMatch: false,
     aliases: ["boongs"],
+  },
+
+  // --- Compound racial slurs (single-token forms; spaced forms covered in phrases) ---
+  {
+    word: "mooncricket",
+    normalized: [],
+    language: "en",
+    severity: "high",
+    category: "slur",
+    allowPartialMatch: false,
+    aliases: ["moon cricket", "mooncrickets"],
+  },
+  {
+    word: "sandmonkey",
+    normalized: [],
+    language: "en",
+    severity: "high",
+    category: "slur",
+    allowPartialMatch: false,
+    aliases: ["sand monkey", "sandmonkeys"],
+  },
+  {
+    word: "cameljockey",
+    normalized: [],
+    language: "en",
+    severity: "high",
+    category: "slur",
+    allowPartialMatch: false,
+    aliases: ["camel jockey", "camel-jockey", "cameljockeys"],
+  },
+  {
+    word: "spearchucker",
+    normalized: [],
+    language: "en",
+    severity: "high",
+    category: "slur",
+    allowPartialMatch: false,
+    aliases: ["spear chucker", "spear-chucker", "spearchuckers"],
+  },
+  {
+    word: "porchmonkey",
+    normalized: [],
+    language: "en",
+    severity: "high",
+    category: "slur",
+    allowPartialMatch: false,
+    aliases: ["porch monkey", "porch-monkey", "porchmonkeys"],
+  },
+
+  // --- Hate organizations ---
+  {
+    word: "kkk",
+    normalized: [],
+    language: "en",
+    severity: "high",
+    category: "hate",
+    allowPartialMatch: false,
+    aliases: ["k.k.k", "k.k.k.", "kuklux", "kukluxklan"],
   },
 
   // ╔══════════════════════════════════════════════╗
@@ -655,7 +785,7 @@ export const EN_WORDS: DictionaryEntry[] = [
   // ╚══════════════════════════════════════════════╝
   {
     word: "fuck",
-    normalized: ["fuk", "fuc", "phuck", "phuk", "fk", "fvck", "f*ck", "f**k"],
+    normalized: ["fuk", "fuc", "phuck", "phuk", "fk", "fvck", "f*ck", "f**k", "f4ck", "f@ck"],
     language: "en",
     severity: "high",
     category: "sexual",
@@ -987,6 +1117,109 @@ export const EN_WORDS: DictionaryEntry[] = [
     aliases: ["incels"],
   },
   {
+    word: "simp",
+    normalized: ["s1mp", "$imp"],
+    language: "en",
+    severity: "low",
+    category: "insult",
+    allowPartialMatch: false,
+    aliases: ["simps", "simping", "simped"],
+  },
+  {
+    word: "cretin",
+    normalized: ["cr3tin", "cret1n"],
+    language: "en",
+    severity: "medium",
+    category: "insult",
+    allowPartialMatch: false,
+    aliases: ["cretins", "cretinous"],
+  },
+  {
+    word: "dirtbag",
+    normalized: ["d1rtbag", "dirtb4g"],
+    language: "en",
+    severity: "medium",
+    category: "insult",
+    allowPartialMatch: false,
+    aliases: ["dirt bag", "dirtbags"],
+  },
+  {
+    word: "meathead",
+    normalized: ["m3athead", "meath3ad"],
+    language: "en",
+    severity: "low",
+    category: "insult",
+    allowPartialMatch: false,
+    aliases: ["meat head", "meatheads"],
+  },
+  {
+    word: "pinhead",
+    normalized: ["p1nhead", "pinh3ad"],
+    language: "en",
+    severity: "low",
+    category: "insult",
+    allowPartialMatch: false,
+    aliases: ["pin head", "pinheads"],
+  },
+  {
+    word: "plonker",
+    normalized: ["pl0nker", "plonk3r"],
+    language: "en",
+    severity: "medium",
+    category: "insult",
+    allowPartialMatch: false,
+    aliases: ["plonkers"],
+  },
+  // `prat` (UK mild insult) intentionally NOT added — `Pratt` is a common
+  // surname (Chris Pratt) and `Pratts Bottom` is a UK place name. The 4-char
+  // word and its inflections aggressive-collapse / exact-match against these
+  // benign uses too aggressively to be worth the limited coverage gain.
+  {
+    word: "shitbag",
+    normalized: ["sh1tbag", "shitb4g"],
+    language: "en",
+    severity: "medium",
+    category: "insult",
+    allowPartialMatch: false,
+    aliases: ["shit bag", "shitbags"],
+  },
+  {
+    word: "slimeball",
+    normalized: ["sl1meball", "slimeb4ll"],
+    language: "en",
+    severity: "medium",
+    category: "insult",
+    allowPartialMatch: false,
+    aliases: ["slime ball", "slimeballs"],
+  },
+  {
+    word: "toolbag",
+    normalized: ["t00lbag", "toolb4g"],
+    language: "en",
+    severity: "low",
+    category: "insult",
+    allowPartialMatch: false,
+    aliases: ["tool bag", "toolbags"],
+  },
+  {
+    word: "twatwaffle",
+    normalized: [],
+    language: "en",
+    severity: "high",
+    category: "insult",
+    allowPartialMatch: false,
+    aliases: ["twat waffle", "twat-waffle", "twatwaffles"],
+  },
+  {
+    word: "whackjob",
+    normalized: ["wh4ckjob", "whackj0b"],
+    language: "en",
+    severity: "medium",
+    category: "insult",
+    allowPartialMatch: false,
+    aliases: ["whack job", "whack-job", "whackjobs"],
+  },
+  {
     word: "pedo",
     normalized: ["p3do", "ped0"],
     language: "en",
@@ -1002,15 +1235,10 @@ export const EN_WORDS: DictionaryEntry[] = [
       "peadophile",
     ],
   },
-  {
-    word: "groomer",
-    normalized: ["gr00mer", "groom3r"],
-    language: "en",
-    severity: "high",
-    category: "insult",
-    allowPartialMatch: false,
-    aliases: ["groomers"],
-  },
+  // `groomer` standalone removed — overwhelmingly benign as occupational term
+  // (dog/horse/hair/pet groomer). The pedophile sense is captured by phrase
+  // entries (`child groomer`, `kid groomer`, `online groomer`) in the phrase
+  // dictionary below, which fire only in the unambiguous compound context.
   {
     word: "degenerate",
     normalized: ["degen3rate", "deg3nerate"],
@@ -1137,7 +1365,11 @@ export const EN_WORDS: DictionaryEntry[] = [
     severity: "high",
     category: "threat",
     allowPartialMatch: false,
-    aliases: ["strangled", "strangling", "choke"],
+    // `choke` removed from aliases — overwhelmingly benign in everyday use
+    // (choke up, choke point, chokehold in martial arts, choking hazard,
+    // chokeslam in wrestling, "I choked under pressure"). Real strangling
+    // threats use `strangle` itself, or are caught by phrase patterns.
+    aliases: ["strangled", "strangling"],
   },
   {
     word: "stab",
@@ -1672,15 +1904,6 @@ export const EN_WORDS: DictionaryEntry[] = [
     category: "threat",
     allowPartialMatch: false,
     aliases: ["eradicated", "eradication", "eradicating"],
-  },
-  {
-    word: "eliminate",
-    normalized: ["elim1nate"],
-    language: "en",
-    severity: "medium",
-    category: "threat",
-    allowPartialMatch: false,
-    aliases: ["eliminated", "eliminating", "elimination"],
   },
 
   // --- Slur corpus additions ---
@@ -2449,7 +2672,7 @@ export const EN_WORDS: DictionaryEntry[] = [
     normalized: [],
     language: "en",
     severity: "high",
-    category: "hate",
+    category: "sexual",
     allowPartialMatch: false,
     aliases: ["beastiality", "beastility", "bestial", "beastial"],
   },
@@ -5187,5 +5410,36 @@ export const EN_PHRASES: PhraseEntry[] = [
     language: "en",
     severity: "high",
     category: "slur",
+  },
+
+  // --- Predatory grooming (compound-only, since `groomer` standalone has
+  //     overwhelming benign occupational use: dog/horse/hair/pet groomer) ---
+  {
+    phrase: "child groomer",
+    words: ["child", "groomer"],
+    language: "en",
+    severity: "high",
+    category: "sexual",
+  },
+  {
+    phrase: "kid groomer",
+    words: ["kid", "groomer"],
+    language: "en",
+    severity: "high",
+    category: "sexual",
+  },
+  {
+    phrase: "online groomer",
+    words: ["online", "groomer"],
+    language: "en",
+    severity: "high",
+    category: "sexual",
+  },
+  {
+    phrase: "pedo groomer",
+    words: ["pedo", "groomer"],
+    language: "en",
+    severity: "high",
+    category: "sexual",
   },
 ];

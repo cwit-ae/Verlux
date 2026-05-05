@@ -34,7 +34,51 @@ export function tokenize(input: string): Token[] {
     });
   }
 
-  return mergeSingleLetterRuns(splitFrenchElisions(tokens), input);
+  return mergeSingleLetterRuns(
+    splitEnglishContractions(splitFrenchElisions(tokens)),
+    input
+  );
+}
+
+/**
+ * Split English-style contractions where a multi-letter word is followed by
+ * an apostrophe and a short contraction suffix (`'ll`, `'d`, `'ve`, `'re`,
+ * `'s`, `'m`, `'t`). Examples: `he'll`, `we're`, `bitch's`, `won't`.
+ *
+ * The main tokenizer regex keeps these together as one token, but the
+ * downstream normalizer strips apostrophes between word chars — so `he'll`
+ * folds to `hell` and falsely matches the dictionary. Splitting here means
+ * the matcher only sees the prefix word, which gets the correct verdict and
+ * tight match positions (e.g. `bitch's` flags `bitch` over span [0,5]).
+ *
+ * Contraction suffixes are a closed set, none of which are profane in any
+ * shipped dictionary, so emitting the suffix as its own token is safe and
+ * symmetric with `splitFrenchElisions`. The 2+-letter prefix guard avoids
+ * overlapping with `splitFrenchElisions`, which already handles single-letter
+ * elisions like `d'enculé` and `t'es`.
+ */
+function splitEnglishContractions(tokens: Token[]): Token[] {
+  const result: Token[] = [];
+  const contractionRe = /^([A-Za-z]{2,})(['‘’])(ll|d|ve|re|s|m|t)$/i;
+  for (const t of tokens) {
+    const m = contractionRe.exec(t.value);
+    if (m) {
+      const [, prefix, apos, suffix] = m;
+      result.push({
+        value: prefix,
+        start: t.start,
+        end: t.start + prefix.length,
+      });
+      result.push({
+        value: suffix,
+        start: t.start + prefix.length + apos.length,
+        end: t.end,
+      });
+    } else {
+      result.push(t);
+    }
+  }
+  return result;
 }
 
 /**

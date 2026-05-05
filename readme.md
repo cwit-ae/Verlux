@@ -5,7 +5,7 @@
   <a href="https://www.npmjs.com/package/verlux"><img src="https://img.shields.io/npm/dm/verlux?style=flat-square&color=1a1a2e" alt="npm downloads" /></a>
   <img src="https://img.shields.io/badge/zero-dependencies-1a1a2e?style=flat-square" alt="zero dependencies" />
   <img src="https://img.shields.io/badge/languages-5-1a1a2e?style=flat-square" alt="languages" />
-  <img src="https://img.shields.io/badge/dictionary-846_entries-1a1a2e?style=flat-square" alt="dictionary" />
+  <img src="https://img.shields.io/badge/dictionary-873_entries-1a1a2e?style=flat-square" alt="dictionary" />
   <img src="https://img.shields.io/npm/l/verlux?style=flat-square&color=1a1a2e" alt="license" />
 </p>
 
@@ -76,6 +76,7 @@ Beyond multilingual coverage, dictionary-based profanity filters typically fail 
 | Character repetition (letters repeated for emphasis)                        | Aggressive repetition collapse with generated spelling variants                         |
 | The _Scunthorpe_ problem (substring false positives)                        | Per-entry `allowPartialMatch` flag combined with an internal safelist of innocent terms; reduces substring false positives but does not eliminate them in every case |
 | Hindi and Urdu written in Latin script (Hinglish)                           | Devanagari-to-Latin transliteration and phonetic variant generation                     |
+| English contractions and Romance-language elisions                          | Apostrophe-aware tokenizer that splits forms such as `he'll`, `won't`, and `bitch's` so that the meaningful word — not its apostrophe-stripped fold — is matched against the dictionary |
 | Spanish diacritics (accented and accent-stripped forms of the same term)    | Accent-stripping normalizer paired with dual-form dictionary entries                    |
 | Multi-word phrase detection                                                 | N-gram windowing that captures common multi-word abusive expressions                    |
 | Mixed-language input                                                        | Automatic detection across every loaded dictionary, with no language hint required      |
@@ -275,7 +276,10 @@ Every input passes through a tiered matching system, ordered from fastest to mos
 Input Text
     |
     v
-[1] Tokenize          ── produces word tokens with character positions
+[1] Tokenize          ── produces word tokens with character positions; English
+                         contractions (`he'll`, `won't`, `bitch's`) and Romance
+                         elisions (`d'enculé`, `qu'il`) are split at the apostrophe
+                         so that match positions point at the meaningful word
     |
     v
 [2] Exact Match       ── O(1) hash lookup across all languages; catches the large majority of abuse
@@ -361,13 +365,14 @@ Measured on commodity developer hardware with the full multi-language index load
 
 | Metric                        | Value                                                               |
 | ----------------------------- | ------------------------------------------------------------------- |
-| Average latency per sentence  | Approximately 5–10 ms                                               |
-| Throughput                    | Approximately 100 or more operations per second                     |
+| Average latency per sentence  | Approximately 150 µs (under one millisecond)                        |
+| Throughput                    | Approximately 6,500 or more operations per second                   |
+| Phrase-match complexity       | O(W) per call via a pre-normalized phrase index built once at startup, where W is the number of n-gram windows |
 | Partial-match scan complexity | O(n + z) via Aho–Corasick automaton, independent of dictionary size |
-| Cold start                    | Under 50 ms                                                         |
+| Cold start                    | Approximately 3 ms                                                  |
 | Memory footprint              | Approximately 2 MB                                                  |
 | Runtime dependencies          | 0                                                                   |
-| Test suite                    | 769 tests passing                                                   |
+| Test suite                    | 776 tests passing                                                   |
 
 > **Disclaimer.** All figures above are reported on the datasets, hardware, and Node.js versions available at the time of publication. They are provided for informational purposes only and do not constitute a guarantee of performance or accuracy for any specific production workload. Consumers are strongly encouraged to validate Verlux against their own representative data before relying on it in critical systems.
 
@@ -375,9 +380,9 @@ Measured on commodity developer hardware with the full multi-language index load
 
 ## Dictionary Coverage
 
-**Total:** 5 languages — 723 words and 123 phrases across English, Hinglish, Spanish, French, and German. The tables below describe the dictionary at the category level only. Specific vocabulary is deliberately omitted from this document; the authoritative wordlists reside under [`src/dictionaries/`](./src/dictionaries).
+**Total:** 5 languages — 746 words and 127 phrases across English, Hinglish, Spanish, French, and German. The tables below describe the dictionary at the category level only. Specific vocabulary is deliberately omitted from this document; the authoritative wordlists reside under [`src/dictionaries/`](./src/dictionaries).
 
-### English — 500 words, 71 phrases
+### English — 523 words, 75 phrases
 
 | Category                         | Entries | Scope                                                                                                         |
 | -------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------- |
