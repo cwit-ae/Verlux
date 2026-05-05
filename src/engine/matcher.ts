@@ -365,6 +365,39 @@ const SAFE_WORDS = new Set([
   // Close to "incel" — "uncle/intel/install"
   'uncle', 'uncles',
   'intel',
+  // ── Aggressive-collapse / partial-match collisions on benign English words ──
+  // `rapping` → aggressive-collapse `pp`→`p` produces `raping`, an alias of
+  // `rape` (threat/high). False-positive volume in any text mentioning rap
+  // music is enormous. Same family — `rapped`, `rappers`, `rapper` — kept
+  // safe defensively against future alias additions.
+  'rapping', 'rapped', 'rapper', 'rappers',
+  // `twink` is `allowPartialMatch: true`, so it Aho-Corasick-hits inside
+  // benign adjectives. `twinkle/twinkled/twinkles/twinkling` are already
+  // safelisted above; `twinkly` and its superlative were missed.
+  'twinkly', 'twinkliest',
+  // `savaged` fuzzy-matches `savages` (slur/high) at 1 edit, similarity 0.86.
+  // Common past-tense verb — "the storm savaged the coast".
+  'savaged',
+
+  // ── 3-letter abbreviation collisions via aggressive-collapse ──
+  // `normalizeVariants` collapses runs of repeated chars to one, so a 3-char
+  // input like `bcc` produces the variant `bc` — which is registered as an
+  // alias of the Hindi-Latin slur `bhenchod`. Same trap exists for several
+  // other 2-char aliases in other languages. Safelist the real-world benign
+  // 3-char abbreviations so they aren't flagged via the collapsed variant.
+  'bcc',           // email blind-carbon-copy field (alias `bc` → bhenchod)
+  'bbc',           // British Broadcasting Corp. (alias `bc` → bhenchod)
+  'mcc',           // Marylebone Cricket Club / Mission Control Center (alias `mc` → madarchod)
+  'mmc',           // MultiMediaCard / Marketing Mix Modeling (alias `mc` → madarchod)
+  'pdd',           // Pervasive Developmental Disorder (alias `pd` → pédé)
+  'ppd',           // Postpartum Depression / pre-paid (alias `pd` → pédé)
+  'hhs',           // US Health & Human Services (alias `hs` → hurensohn)
+  'hss',           // Hospital for Special Surgery (alias `hs` → hurensohn)
+  'mff',           // common acronym (alias `mf` → motherfucker)
+  'mmf',           // common acronym (alias `mf` → motherfucker)
+  'bjj',           // Brazilian Jiu-Jitsu (alias `bj` → blowjob)
+  'hjj',           // initials/abbreviation (alias `hj` → handjob)
+
   // ── Exact-alias collisions with brand / tech / biology / engineering terms ──
   // These are aliases of slur/profanity entries whose benign meaning dominates
   // in normal professional or descriptive text. The canonical slur form is left
@@ -375,6 +408,10 @@ const SAFE_WORDS = new Set([
   'nike',      // Nike brand (alias of French `niquer`)
   'dike',      // civil-engineering / geological term for an embankment or rock intrusion (alias of `dyke`)
   'pouf',      // upholstered footstool / furniture term (alias of `poofter`)
+  'rand',      // C `rand()` / South African Rand currency / Ayn Rand / RAND Corp (alias of Hindi `randi`)
+  'rands',     // plural — Rand currency, RAND staff
+  'wang',      // Wang — extremely common Chinese surname (~95M people); also Wang Computer, Vera Wang, Wang Wei. The mild slang sense (severity:low) is dwarfed by surname use.
+  'wangs',     // plural / possessive form of the surname
   // ── Spanish collisions (accent-stripped forms that collide with dictionary) ──
   // "coño" normalizes to "cono" which is also Spanish for "cone"
   'cono', 'conos',
@@ -468,6 +505,13 @@ interface DictionaryIndex {
   fuzzyIndex: Map<string, string[]>;
   /** Phrase entries for multi-word detection */
   phrases: PhraseEntry[];
+  /**
+   * Phrase entries indexed by their normalized form. Multi-valued because
+   * distinct entries can normalize to the same key (e.g. accent variants).
+   * Lets `matchPhrases` do an O(1) lookup per window instead of scanning
+   * every phrase entry for every window.
+   */
+  phrasesByNormalized: Map<string, PhraseEntry[]>;
   /** All canonical words (for fuzzy matching) */
   allWords: string[];
   /** Aho-Corasick automaton over allowPartialMatch words (all languages) —
@@ -532,10 +576,24 @@ export function buildIndex(entries: DictionaryEntry[], phrases: PhraseEntry[] = 
 
   partialAutomaton.build();
 
+  // Pre-normalize phrase entries once at index build time so per-detect calls
+  // do an O(1) Map lookup per window instead of scanning every phrase entry.
+  const phrasesByNormalized = new Map<string, PhraseEntry[]>();
+  for (const phraseEntry of phrases) {
+    const key = normalize(phraseEntry.phrase);
+    let bucket = phrasesByNormalized.get(key);
+    if (!bucket) {
+      bucket = [];
+      phrasesByNormalized.set(key, bucket);
+    }
+    bucket.push(phraseEntry);
+  }
+
   return {
     wordMap,
     fuzzyIndex,
     phrases,
+    phrasesByNormalized,
     allWords,
     partialAutomaton,
     hasPartialPatterns: seenPartialKeys.size > 0,
@@ -649,6 +707,14 @@ function getRawSegments(input: string): RawSegment[] {
   return segments;
 }
 
+// English contraction suffixes — closed set. A multi-letter word followed by
+// `'` and one of these is a contraction (`he'll`, `bitch's`, `won't`, …). The
+// suffix is never profane, and the prefix is the meaningful word — matching
+// must run against the prefix alone, never against the apostrophe-stripped
+// fold (which would turn `he'll` into `hell`). The tokenizer pre-splits this
+// for Phase 1; Phase 1.5 (whitespace segments) needs the same handling.
+const CONTRACTION_RE = /^([A-Za-z]{2,})(['‘’])(?:ll|d|ve|re|s|m|t)$/i;
+
 /**
  * Try to match a raw segment (may contain l33t chars, separators, etc.)
  * by normalizing it first and then checking the dictionary.
@@ -662,6 +728,23 @@ function matchRawSegment(
 
   // Check internal safelist
   if (SAFE_WORDS.has(raw.toLowerCase())) return null;
+
+  // English contraction: match against the prefix only. Position narrows to
+  // the prefix span so a result like `bitch's` flags `bitch` over [0,5]
+  // rather than the whole 7-char segment.
+  const contractionMatch = CONTRACTION_RE.exec(raw);
+  if (contractionMatch) {
+    const prefix = contractionMatch[1];
+    return matchRawSegment(
+      {
+        value: prefix,
+        start: segment.start,
+        end: segment.start + prefix.length,
+      },
+      index,
+      config
+    );
+  }
 
   // Check raw text directly (catches aliases like 's**t', 'f**k' before normalization strips them)
   const rawLower = raw.toLowerCase();
@@ -835,6 +918,10 @@ function matchToken(
 
 /**
  * Match multi-word phrases against the phrase dictionary.
+ *
+ * Performance: each window does an O(1) Map lookup against the pre-normalized
+ * phrase index (`phrasesByNormalized`). Per-call cost is O(W + matches),
+ * where W is the number of n-gram windows generated from the input tokens.
  */
 function matchPhrases(
   tokens: Token[],
@@ -842,31 +929,32 @@ function matchPhrases(
   config: ResolvedConfig
 ): DetectionResult[] {
   const results: DetectionResult[] = [];
+  if (index.phrasesByNormalized.size === 0) return results;
+
   const windows = phraseWindows(tokens, 5);
 
   for (const window of windows) {
     const normalizedPhrase = normalize(window.phrase);
+    const matches = index.phrasesByNormalized.get(normalizedPhrase);
+    if (!matches) continue;
 
-    for (const phraseEntry of index.phrases) {
+    for (const phraseEntry of matches) {
       // Language filter
       if (config.languages && !config.languages.includes(phraseEntry.language)) continue;
 
       // Severity filter
       if (SEVERITY_ORDER[phraseEntry.severity] < SEVERITY_ORDER[config.minSeverity]) continue;
 
-      const normalizedTarget = normalize(phraseEntry.phrase);
-      if (normalizedPhrase === normalizedTarget) {
-        results.push({
-          original: window.phrase,
-          matched: phraseEntry.phrase,
-          language: phraseEntry.language,
-          severity: phraseEntry.severity,
-          category: phraseEntry.category,
-          position: [window.start, window.end],
-          matchType: 'phrase',
-          confidence: 1.0,
-        });
-      }
+      results.push({
+        original: window.phrase,
+        matched: phraseEntry.phrase,
+        language: phraseEntry.language,
+        severity: phraseEntry.severity,
+        category: phraseEntry.category,
+        position: [window.start, window.end],
+        matchType: 'phrase',
+        confidence: 1.0,
+      });
     }
   }
 

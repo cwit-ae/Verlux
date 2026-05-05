@@ -69,7 +69,10 @@ export const HI_LATN_WORDS: DictionaryEntry[] = [
     severity: 'high',
     category: 'insult',
     allowPartialMatch: false,
-    aliases: ['rand', 'rndi', 'randibaaz', 'randwa'],
+    // `rand` removed from aliases — collides with English `rand()` (C function),
+    // South African Rand currency, Ayn Rand, RAND Corporation, and the surname.
+    // Hindi-English speakers typing the slur use the full `randi` anyway.
+    aliases: ['rndi', 'randibaaz', 'randwa'],
   },
   {
     word: 'haramzada',
