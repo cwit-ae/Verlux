@@ -1,6 +1,6 @@
 {
   "name": "verlux",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "description": "Intelligent multilingual profanity detection with fuzzy matching, transliteration, and phrase detection",
   "main": "dist/cjs/index.js",
   "module": "dist/esm/index.js",
