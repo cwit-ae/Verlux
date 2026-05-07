@@ -10,6 +10,36 @@ _No unreleased changes yet._
 
 ---
 
+## [1.0.11] — 2026-05-07
+
+### Security
+
+- **Input boundary hardened across `detect`, `score`, `censor`, and `isClean`.** Non-string `text` arguments — numbers, booleans, plain objects, arrays, symbols, BigInts, `null`, and `undefined` — previously crashed inside the matching pipeline with `TypeError: text.trim is not a function`, or, in the case of objects whose duck-typed `trim` returned a length-bearing value, surfaced as `RangeError: Invalid array length` from `unicodeFold`. Each of the four public methods now validates `text` at the API boundary via a single `validateInputText()` helper and throws `TypeError: verlux: text must be a string (got <type>)` before any matcher state is touched. This closes a class of crashes that any HTTP integration piping `req.body.message`-style values directly into Verlux was previously exposed to.
+- **Hard 100,000-character cap on `text` inputs.** Previously, a single non-whitespace token of roughly four million or more identical characters caused V8's Irregexp engine to overflow its internal stack inside the normalizer's repetition-collapse pass (`/(.)\1{2,}/g`) — a remote denial-of-service vector reachable from any unguarded `verlux.detect()` caller, for example via an HTTP request body containing `'a'.repeat(5_000_000)`. Inputs exceeding the cap now throw `RangeError: verlux: text exceeds maximum length of 100000 characters` at the API boundary. Realistic moderation inputs (chat messages, support tickets, forum posts) are well under this ceiling; consumers who scan longer documents should chunk the input.
+- **Repetition-collapse normalizer rewritten without regex.** The two repetition-collapse passes in `normalize()` and `normalizeVariants()` now run as manual O(n) scans through a single `collapseRuns()` helper rather than as `String.prototype.replace` calls against `/(.)\1{2,}/g` and `/(.)\1+/g`. Together with the input cap, this removes the V8 regex-engine stack-overflow vector at its root, regardless of how the text reaches the normalizer. Newline-like characters (`\n`, `\r`, U+2028, U+2029) are deliberately preserved so the new helper matches the original `(.)`-without-`s`-flag semantics exactly; all 776 existing detection tests pass without modification.
+- **`censor()` mask coerced safely to a string.** A non-string `mask` value (for example `verlux.censor(text, { mask: 1234 })`) previously crashed at `mask.repeat(...)` with `TypeError: mask.repeat is not a function`. The mask now silently defaults to `'*'` whenever the supplied value is not a string, matching the documented "configurable mask character" contract.
+- **Whitelist entries validated as strings at configuration time.** A `whitelist` array containing a poisoned object whose `toString` throws (`{ toString() { throw new Error('pwn') } }`) previously propagated the arbitrary thrown error out of `detect()` through the defensive `String(w)` coercion in `resolveConfig`. The whitelist array is now validated element-by-element by `validateConfig`, and any non-string entry is rejected with `TypeError: verlux: whitelist[i] must be a string (got <type>)` before configuration is resolved. The defensive `String(w)` coercion has been removed accordingly.
+- **Per-call `languages` configuration no longer rebuilds the dictionary index on every call.** Previously, any caller forwarding user-controlled language preferences — for example `verlux.detect(text, { languages: req.body.langs })` — paid the full cost of `buildIndex(...)` on every invocation, measured at approximately 70× CPU amplification on a hot path (1,070 ms versus 15 ms for one thousand calls of an eleven-character input). A cache keyed on the sorted language set now reuses prior builds; cache size is bounded by the powerset of the supported language list and so cannot grow unbounded under adversarial input. Repeat-call latency drops to within noise of the no-config baseline.
+
+### Changed
+
+- `detect`, `score`, `censor`, and `isClean` now throw `TypeError` on non-string `text` inputs. Previously, falsy non-strings such as `null`, `undefined`, `0`, and `false` returned an empty result, while truthy non-strings crashed with cryptic internal errors. Empty and whitespace-only strings continue to short-circuit to the empty result as before. Callers who rely on the prior permissive behavior for nullish inputs should add an explicit `text != null` guard at the call site.
+
+---
+
+## [1.0.10] — 2026-05-06
+
+### Added
+
+- **Project governance and contributor documentation.** Added [`CHANGELOG.md`](./CHANGELOG.md) (this file) following the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format, [`CODE_OF_CONDUCT.md`](./CODE_OF_CONDUCT.md), [`CONTRIBUTING.md`](./CONTRIBUTING.md) describing the dictionary-submission and pull-request workflow, [`LICENSE`](./LICENSE) (MIT), and [`SECURITY.md`](./SECURITY.md) describing the private vulnerability-disclosure channel. These files codify the contribution and disclosure expectations that the project had been operating under informally.
+- **Structured GitHub issue and pull-request templates.** Added [`.github/ISSUE_TEMPLATE/bug_report.yml`](./.github/ISSUE_TEMPLATE/bug_report.yml), [`false_positive.yml`](./.github/ISSUE_TEMPLATE/false_positive.yml), [`missed_detection.yml`](./.github/ISSUE_TEMPLATE/missed_detection.yml), and [`feature_request.yml`](./.github/ISSUE_TEMPLATE/feature_request.yml), together with [`config.yml`](./.github/ISSUE_TEMPLATE/config.yml) routing other questions to GitHub Discussions, and a [`PULL_REQUEST_TEMPLATE.md`](./.github/PULL_REQUEST_TEMPLATE.md). The four issue templates correspond to the principal classes of report Verlux receives — crashes, false positives, missed detections, and feature proposals — and surface the metadata each class needs (input string, expected versus actual behaviour, language pack, severity tier) without requiring reporters to discover those fields themselves.
+
+### Changed
+
+- **Readme rewritten with expanded coverage of detection capabilities, comparison data, and benchmark methodology.** The substring-collision-resistance and Unicode-obfuscation-resistance sections were elaborated, the comparison against the three most-downloaded npm profanity packages (`bad-words`, `obscenity`, `@2toad/profanity`) was added, and the data-sources / attribution and notice-and-intended-use sections were restructured to match the language now codified in [`CONTRIBUTING.md`](./CONTRIBUTING.md) and [`SECURITY.md`](./SECURITY.md).
+
+---
+
 ## [1.0.9] — 2026-05-05
 
 ### Added
