@@ -1,0 +1,37 @@
+name: Feature request
+description: Propose a new capability, language pack, or API change.
+title: "[Feature]: "
+labels: ["enhancement", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For larger proposals — a new language pack, a public-API addition, a pipeline-stage rewrite — please share enough context that we can agree on scope and semantics before any implementation begins.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What can you not do today, or what is harder than it should be? Concrete examples beat abstract framings.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: A sketch of the API, configuration option, or behaviour you have in mind. TypeScript signatures are welcome.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other approaches you weighed and why this one is preferable.
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope and compatibility
+      description: Is this a breaking change? Does it require a new dependency? Does it affect benchmark numbers?

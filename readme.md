@@ -3,9 +3,8 @@
   <a href="https://github.com/cwit-ae/Verlux/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/cwit-ae/Verlux/ci.yml?branch=main&style=flat-square&color=1a1a2e&label=CI" alt="CI status" /></a>
   <a href="https://github.com/cwit-ae/Verlux/actions/workflows/codeql.yml"><img src="https://img.shields.io/github/actions/workflow/status/cwit-ae/Verlux/codeql.yml?branch=main&style=flat-square&color=1a1a2e&label=CodeQL" alt="CodeQL status" /></a>
   <a href="https://www.npmjs.com/package/verlux"><img src="https://img.shields.io/npm/dm/verlux?style=flat-square&color=1a1a2e" alt="npm downloads" /></a>
+  <a href="https://bundlephobia.com/package/verlux"><img src="https://img.shields.io/bundlephobia/minzip/verlux?style=flat-square&color=1a1a2e&label=min%2Bgzip" alt="bundle size" /></a>
   <img src="https://img.shields.io/badge/zero-dependencies-1a1a2e?style=flat-square" alt="zero dependencies" />
-  <img src="https://img.shields.io/badge/languages-5-1a1a2e?style=flat-square" alt="languages" />
-  <img src="https://img.shields.io/badge/dictionary-873_entries-1a1a2e?style=flat-square" alt="dictionary" />
   <img src="https://img.shields.io/npm/l/verlux?style=flat-square&color=1a1a2e" alt="license" />
 </p>
 
@@ -20,11 +19,40 @@
   Zero runtime dependencies. Fully offline. Resilient to common obfuscation techniques.
 </p>
 
+<p align="center">
+  <a href="#quick-start">Quick start</a> ·
+  <a href="#comparison-with-other-npm-packages">Comparison</a> ·
+  <a href="#api-reference">API</a> ·
+  <a href="#results--testing-our-dataset">Benchmarks</a> ·
+  <a href="#contributing">Contributing</a>
+</p>
+
+---
+
+<p align="center">
+  <strong>Why Verlux</strong>
+</p>
+
+- **Five languages, one call.** English, Hinglish, Spanish, French, and German are scanned in the same pass with no per-call language hint required — including inputs that mix multiple languages in a single sentence.
+- **Severity, category, and toxicity score per match.** Every detection carries a `severity` (`low` / `medium` / `high`) and a `category` (`slur`, `sexual`, `insult`, `hate`, `threat`, `drug`, `other`), and `score()` returns a normalized toxicity score with a complete category breakdown — suitable for moderation queues and call-centre dashboards.
+- **Cross-script Unicode obfuscation resistance.** Cyrillic and Greek look-alike codepoints (`fuсk` with a Cyrillic `с`), fullwidth forms (`ｆｕｃｋ`), mathematical-alphanumeric variants (`𝐟𝐮𝐜𝐤`), ligatures, zero-width / invisible characters, and combining-mark overlays (`f̸u̸c̸k̸`) are all folded to canonical ASCII before matching — and result positions are mapped back to the original input so highlighters, censors, and downstream tooling keep working unchanged.
+- **Zero dependencies, fully offline, ~150 µs per sentence.** A 2 MB memory footprint and a 3 ms cold start. Substring-collision-resistant against a 468-input regression corpus.
+
+```ts
+import { verlux } from "verlux";
+
+verlux.detect("<English + Spanish + Hinglish abuse in one sentence>");
+// → three matches, three languages, one call
+
+verlux.score("<abusive input>").toxicity; // 0.42
+verlux.isClean("hello world");            // true
+verlux.censor("<abusive input>");         // "**** you"
+```
+
 ---
 
 ## Table of Contents
 
-- [Notice and Intended Use](#notice-and-intended-use)
 - [Overview](#overview)
 - [Comparison with Other npm Packages](#comparison-with-other-npm-packages)
 - [Installation](#installation)
@@ -36,30 +64,12 @@
 - [Dictionary Coverage](#dictionary-coverage)
 - [Supported Languages](#supported-languages)
 - [Use Cases](#use-cases)
+- [Contributing](#contributing)
 - [Data Sources and Attribution](#data-sources-and-attribution)
+- [Notice and Intended Use](#notice-and-intended-use)
 - [Limitations](#limitations)
 - [Legal Notices](#legal-notices)
 - [License](#license)
-
----
-
-## Notice and Intended Use
-
-Verlux ships with a curated lexicon of profane, offensive, hateful, and sexually explicit terms in multiple languages. These terms are included **solely to enable automated detection and moderation** of such language in user-generated content.
-
-The presence of any term in this package:
-
-- does **not** reflect the views, opinions, or endorsements of the authors, maintainers, contributors, Clear Wave Information Technologies (CWIT), or any affiliated entity;
-- does **not** constitute advocacy for, or glorification of, any group, ideology, slur, or act referenced by the listed terms;
-- is **not** intended to be surfaced, displayed, or read by end users.
-
-**Intended uses** include (but are not limited to): content moderation pipelines, abuse and harassment detection, chat filtering, call-centre quality assurance, trust-and-safety tooling, academic research, and regulatory compliance workflows.
-
-**Prohibited uses** include any application that targets, harasses, surveils, or discriminates against individuals or protected groups; any use that violates applicable laws (including anti-discrimination, privacy, and data-protection law); and any attempt to reverse-engineer the dictionary to generate, propagate, or amplify abusive content.
-
-By installing or using this package, you acknowledge that you have read this notice and agree to use Verlux in a lawful and responsible manner.
-
-> For readability, code examples throughout this document use placeholder strings such as `<abusive input>`, `<obfuscated slur>`, or `<multilingual abuse>` in place of actual offensive vocabulary. In production, the corresponding inputs would be real user-submitted text.
 
 ---
 
@@ -74,6 +84,10 @@ Beyond multilingual coverage, dictionary-based profanity filters typically fail 
 | Leetspeak substitutions (digits or symbols replacing letters)               | Character-class normalizer that decodes standard leet substitutions prior to lookup     |
 | Separated characters (terms broken up by punctuation, brackets, or slashes) | Separator stripping across punctuation, brackets, slashes, and pipes                    |
 | Character repetition (letters repeated for emphasis)                        | Aggressive repetition collapse with generated spelling variants                         |
+| Cross-script confusables (Cyrillic/Greek codepoints visually impersonating Latin, e.g. `fuсk` with U+0441) | Curated confusable-fold table that maps the full Cyrillic and Greek look-alike sets to their Latin equivalents prior to tokenization |
+| Unicode compatibility forms (fullwidth `Ｆｕｃｋ`, mathematical alphanumeric `𝐟𝐮𝐜𝐤`, ligatures `ﬁ`) | NFKC compatibility decomposition applied per codepoint, with surrogate-pair-safe index mapping back to the original input |
+| Invisible / zero-width Unicode (zero-width space, joiners, BOM, soft hyphen, etc.) | Single-pass strip across a curated invisible-character range covering the common abuse vectors |
+| Combining-mark overlays (base letter plus strikethrough or overlay codepoint, e.g. `f̸u̸c̸k̸`) | Orphan combining marks are dropped before tokenization so the base letters fuse into a single token, while Devanagari, Arabic, and Hebrew combining marks (which carry meaning) are preserved |
 | The _Scunthorpe_ problem (substring false positives)                        | Per-entry `allowPartialMatch` flag combined with an internal safelist of innocent terms; reduces substring false positives but does not eliminate them in every case |
 | Hindi and Urdu written in Latin script (Hinglish)                           | Devanagari-to-Latin transliteration and phonetic variant generation                     |
 | English contractions and Romance-language elisions                          | Apostrophe-aware tokenizer that splits forms such as `he'll`, `won't`, and `bitch's` so that the meaningful word — not its apostrophe-stripped fold — is matched against the dictionary |
@@ -96,6 +110,7 @@ The table below compares Verlux against the three most-downloaded npm profanity-
 | Romanized Hindi (Hinglish) wordlist shipped                        | ✅                          | ❌                                       | ❌                                           | ❌ (Devanagari list only)                                    |
 | Devanagari → Latin transliteration in the detection pipeline       | ✅                          | ❌                                       | ❌                                           | ❌                                                            |
 | Obfuscation handling (leet, separator stripping, repetition collapse) | ✅                       | ⚠️ basic symbol substitution only        | ✅                                           | not documented                                                |
+| Cross-script Unicode confusable folding (Cyrillic / Greek look-alikes, fullwidth, mathematical alphanumeric, ligatures, invisibles, combining-mark overlays) | ✅ | not documented                           | not documented                               | not documented                                                |
 | Levenshtein-based fuzzy matching                                   | ✅                          | ❌                                       | ❌ (uses regex variant patterns instead)     | ❌                                                            |
 | Multi-word phrase detection documented                             | ✅                          | not documented                           | ✅                                           | not documented                                                |
 | Returns severity tier per match (low / medium / high)              | ✅                          | ❌                                       | ❌                                           | ❌                                                            |
@@ -121,6 +136,8 @@ Verlux requires Node.js 18 or later and is published as both CommonJS and ES Mod
 ---
 
 ## Quick Start
+
+> For readability, code examples throughout this document use placeholder strings such as `<abusive input>`, `<obfuscated slur>`, or `<multilingual abuse>` in place of actual offensive vocabulary. In production, the corresponding inputs would be real user-submitted text.
 
 ```ts
 import { verlux } from "verlux";
@@ -276,6 +293,15 @@ Every input passes through a tiered matching system, ordered from fastest to mos
 Input Text
     |
     v
+[0] Unicode Fold      ── per-codepoint pass that maps Cyrillic and Greek confusables
+    |                    to Latin, applies NFKC compatibility decomposition (fullwidth,
+    |                    mathematical alphanumeric, ligatures), strips invisible / zero-width
+    |                    codepoints, and drops orphan combining marks (e.g. strikethrough
+    |                    overlays). An index map is recorded so result positions map back
+    |                    to the original input. Pure-ASCII input takes a fast path and skips
+    |                    the per-codepoint loop entirely.
+    |
+    v
 [1] Tokenize          ── produces word tokens with character positions; English
                          contractions (`he'll`, `won't`, `bitch's`) and Romance
                          elisions (`d'enculé`, `qu'il`) are split at the apostrophe
@@ -358,6 +384,24 @@ In addition to the end-to-end benchmark above, our dataset is regression-tested 
 | **Total**                                                                | **468**      | **0**           |
 
 > **Scope.** This corpus measures resistance to _substring-overlap_ false positives only — that is, inputs that incidentally contain profane characters within an unrelated word. It does **not** measure resistance to _exact-word_ collisions, where a dictionary entry appears verbatim inside an idiomatic, technical, or otherwise benign sentence (for example, the verb _"murder"_ inside the business idiom _"let us murder the competition"_, which is the single false positive recorded in the coverage benchmark above). Such exact-word collisions are an inherent property of any dictionary that takes incitement vocabulary seriously and are intended to be neutralised at integration time via the per-instance [`whitelist`](#configuration) configuration option.
+
+### Unicode Obfuscation Resistance
+
+A separate test suite in [`tests/unicode-obfuscation.test.ts`](./tests/unicode-obfuscation.test.ts) exercises the cross-script and Unicode-compatibility folds against the canonical attack classes. Specific vocabulary is not reproduced in this table; the suite runs as part of the standard `npm test` invocation.
+
+| Class                                                                               | Folded as                                                            | Detection                                                                            |
+| ----------------------------------------------------------------------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| Cyrillic look-alikes (U+0430–U+04FF subset, e.g. `fuсk`, `аss`, `bitсh`)            | Per-codepoint confusable map → Latin                                 | ✅ matches and reports the canonical Latin term                                      |
+| Greek look-alikes (U+0370–U+03CF subset, e.g. `cοck`, `pοrn`)                       | Per-codepoint confusable map → Latin                                 | ✅ matches and reports the canonical Latin term                                      |
+| Fullwidth Latin (U+FF21–U+FF5A, e.g. `ｆｕｃｋ`, `Ａｓｓ`)                              | NFKC compatibility decomposition                                     | ✅ matches; original positions preserved                                             |
+| Mathematical alphanumeric (U+1D400–U+1D7FF, e.g. `𝐟𝐮𝐜𝐤`, `𝑓𝑢𝑐𝑘`, `𝖿𝗎𝖼𝗄`)            | NFKC, with surrogate-pair-safe index mapping                         | ✅ matches; UTF-16 surrogate pairs round-trip to original positions                  |
+| Ligatures (e.g. `ﬁ` → `fi`)                                                          | NFKC compatibility decomposition                                     | ✅ matches; index map records the one-to-many expansion                              |
+| Invisible / zero-width (zero-width space, joiners, BOM, soft hyphen, …)             | Stripped before tokenization                                          | ✅ matches; original characters discarded from the folded view                       |
+| Combining-mark overlays (base letter + U+0338 strikethrough, stacked diacritics)    | Orphan combining marks dropped before tokenization                   | ✅ matches; base letters fuse into a single token                                    |
+| Legitimate non-Latin text (Russian, Greek, mixed diacritic-bearing words)           | Folded to Latin where applicable; not surfaced unless it forms an entry | ✅ does **not** flag; clean inputs round-trip unchanged                              |
+| Precomposed Latin diacritics (Spanish `cabrón`, French `connard`, German `arschloch`) | Preserved by the normalizer (single codepoints, not base + mark)    | ✅ matches against accent-aware dictionary entries; benign diacritics untouched      |
+
+After every fold, result `position` indices are mapped back through a `[folded → original]` index map so `original`, `position`, and `verlux.censor()` continue to operate on the input as the user typed it — including across surrogate pairs and one-to-many NFKC expansions. Pure-ASCII input takes a fast path that skips the per-codepoint loop entirely.
 
 ### Performance
 
@@ -486,6 +530,24 @@ const safe = verlux.censor(userComment);
 
 ---
 
+## Contributing
+
+Verlux is open to contributions of every shape — bug reports, false-positive and missed-detection submissions, dictionary additions, new language packs, pipeline improvements, and documentation. Community involvement is what keeps the dictionary current and the false-positive corpus honest.
+
+| If you want to …                                                  | Start here                                                                                              |
+| ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| **Report a bug** (crash, wrong type, performance regression)      | Open a [Bug report](https://github.com/cwit-ae/Verlux/issues/new?template=bug_report.yml).              |
+| **Report a false positive** (benign input flagged as abusive)     | Open a [False positive](https://github.com/cwit-ae/Verlux/issues/new?template=false_positive.yml).      |
+| **Report a missed detection** (abusive input that was not caught) | Open a [Missed detection](https://github.com/cwit-ae/Verlux/issues/new?template=missed_detection.yml).  |
+| **Propose a new feature, language pack, or API change**           | Open a [Feature request](https://github.com/cwit-ae/Verlux/issues/new?template=feature_request.yml).    |
+| **Ask a question or open a discussion**                           | Use [GitHub Discussions](https://github.com/cwit-ae/Verlux/discussions).                                |
+| **Disclose a security issue privately**                           | File a [Security advisory](https://github.com/cwit-ae/Verlux/security/advisories/new).                  |
+| **Submit a pull request**                                         | Read the [Contributing guide](./CONTRIBUTING.md), then open a PR. The repository ships a PR template.   |
+
+Dictionary contributions are reviewed against the same `severity`, `category`, and `allowPartialMatch` schema described in [Configuration](#configuration), and every accepted entry is exercised against the [substring-collision corpus](#substring-collision-resistance) before being merged. Sources must be MIT-commercial-compatible — see [`CONTRIBUTING.md`](./CONTRIBUTING.md) for the full submission guidelines.
+
+---
+
 ## Data Sources and Attribution
 
 Dictionary entries are informed by vocabulary published in peer-reviewed hate-speech research datasets and permissively licensed open-source profanity libraries. Every imported term has been independently re-classified under Verlux's `severity`, `category`, and `allowPartialMatch` schema, and every imported term has been evaluated against the internal false-positive corpus prior to inclusion.
@@ -499,6 +561,24 @@ Dictionary entries are informed by vocabulary published in peer-reviewed hate-sp
 - Catalog: [hatespeechdata.com](https://hatespeechdata.com/)
 
 The full upstream licence texts, together with notices describing the scope of reuse, are redistributed under [`NOTICES/`](./NOTICES). If you believe any attribution is missing or incorrect, please open an issue so we can remedy it promptly.
+
+---
+
+## Notice and Intended Use
+
+Verlux ships with a curated lexicon of profane, offensive, hateful, and sexually explicit terms in multiple languages. These terms are included **solely to enable automated detection and moderation** of such language in user-generated content.
+
+The presence of any term in this package:
+
+- does **not** reflect the views, opinions, or endorsements of the authors, maintainers, contributors, Clear Wave Information Technologies (CWIT), or any affiliated entity;
+- does **not** constitute advocacy for, or glorification of, any group, ideology, slur, or act referenced by the listed terms;
+- is **not** intended to be surfaced, displayed, or read by end users.
+
+**Intended uses** include (but are not limited to): content moderation pipelines, abuse and harassment detection, chat filtering, call-centre quality assurance, trust-and-safety tooling, academic research, and regulatory compliance workflows.
+
+**Prohibited uses** include any application that targets, harasses, surveils, or discriminates against individuals or protected groups; any use that violates applicable laws (including anti-discrimination, privacy, and data-protection law); and any attempt to reverse-engineer the dictionary to generate, propagate, or amplify abusive content.
+
+By installing or using this package, you acknowledge that you have read this notice and agree to use Verlux in a lawful and responsible manner.
 
 ---
 

@@ -1,0 +1,81 @@
+name: Bug report
+description: Report a crash, incorrect behaviour, performance regression, or type-definition issue.
+title: "[Bug]: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug. The more precise the reproduction, the faster we can fix it.
+
+        For *missed detections* (something abusive that was not flagged) please use the **Missed detection** template instead, and for *false positives* (something benign that was flagged) please use the **False positive** template.
+
+  - type: input
+    id: verlux-version
+    attributes:
+      label: Verlux version
+      description: Output of `npm ls verlux` or the version field in your `package.json`.
+      placeholder: "1.0.9"
+    validations:
+      required: true
+
+  - type: input
+    id: node-version
+    attributes:
+      label: Node.js version
+      description: Output of `node -v`.
+      placeholder: "v20.11.1"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: module-system
+    attributes:
+      label: Module system
+      options:
+        - ESM (import)
+        - CommonJS (require)
+        - Both / not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: input
+    attributes:
+      label: Input string
+      description: The exact text passed to Verlux. Wrap in backticks to preserve whitespace and special characters.
+      placeholder: "`hello world`"
+    validations:
+      required: true
+
+  - type: textarea
+    id: config
+    attributes:
+      label: Configuration
+      description: The configuration passed to `verlux.detect` / `verlux.score` / `verlux.configure`, if any.
+      render: ts
+      placeholder: |
+        { fuzzyThreshold: 0.85, languages: ["en"] }
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual result
+      description: The full output you observed (or the error / stack trace).
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result
+      description: What you expected to happen, and why.
+    validations:
+      required: true
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Additional context
+      description: Anything else that helps — minimal repro repository, link to a failing CI run, etc.
