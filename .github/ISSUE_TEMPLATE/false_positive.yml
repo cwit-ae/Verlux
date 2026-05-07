@@ -1,0 +1,63 @@
+name: False positive
+description: A benign input was flagged as profane.
+title: "[False positive]: "
+labels: ["false-positive", "dictionary", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. False positives are graded against a 468-input regression corpus, and every confirmed report typically results in a new corpus entry — so this is genuinely useful.
+
+  - type: input
+    id: verlux-version
+    attributes:
+      label: Verlux version
+      placeholder: "1.0.9"
+    validations:
+      required: true
+
+  - type: textarea
+    id: input
+    attributes:
+      label: Input string
+      description: The exact benign text that was flagged.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: language
+    attributes:
+      label: Language of the input
+      options:
+        - English (en)
+        - Hinglish (hi-latn)
+        - Spanish (es)
+        - French (fr)
+        - German (de)
+        - Mixed / multilingual
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: detection
+    attributes:
+      label: What Verlux returned
+      description: Full `detect()` or `score()` output. Include the `matched`, `category`, `severity`, and `matchType` fields if possible.
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: why-benign
+    attributes:
+      label: Why this input is benign
+      description: A one- or two-sentence explanation. For idiomatic phrases, please name the idiom; for proper nouns, name the person, place, or brand.
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context where this matters
+      description: Optional — what application surfaced this false positive (chat moderation, call-centre transcript, forum post, etc.).

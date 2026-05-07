@@ -1,10 +1,11 @@
 {
   "name": "verlux",
-  "version": "1.0.9",
-  "description": "Intelligent multilingual profanity detection with fuzzy matching, transliteration, and phrase detection",
+  "version": "1.0.10",
+  "description": "Profanity and abuse detection across 5 languages with severity, category, and toxicity scoring per match. Unicode-obfuscation resistant, zero dependencies, fully offline.",
   "main": "dist/cjs/index.js",
   "module": "dist/esm/index.js",
   "types": "dist/types/index.d.ts",
+  "sideEffects": false,
   "exports": {
     ".": {
       "import": "./dist/esm/index.js",
@@ -35,7 +36,12 @@
     "transliteration",
     "hinglish",
     "moderation",
-    "content-filter"
+    "content-filter",
+    "unicode",
+    "confusables",
+    "homoglyph",
+    "obfuscation",
+    "nfkc"
   ],
   "author": "Bilal Subhani - CWIT",
   "license": "MIT",

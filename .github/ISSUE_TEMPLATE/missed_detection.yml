@@ -1,0 +1,81 @@
+name: Missed detection
+description: A profane or abusive input was not flagged.
+title: "[Missed]: "
+labels: ["missed-detection", "dictionary", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. Missed detections drive both dictionary updates and pipeline improvements.
+
+        ⚠️ Please be thoughtful about what you paste here. Issues are public and indexed by search engines. If the term is a slur or sexually explicit, you may obfuscate it lightly (e.g. replace one character with `*`) and we will reconstruct it during triage; or you can email it privately and reference the issue from the email.
+
+  - type: input
+    id: verlux-version
+    attributes:
+      label: Verlux version
+      placeholder: "1.0.9"
+    validations:
+      required: true
+
+  - type: textarea
+    id: input
+    attributes:
+      label: Input string
+      description: The abusive input that was not flagged. Light obfuscation is fine.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: language
+    attributes:
+      label: Language of the input
+      options:
+        - English (en)
+        - Hinglish (hi-latn)
+        - Spanish (es)
+        - French (fr)
+        - German (de)
+        - Mixed / multilingual
+        - A language we do not yet ship
+    validations:
+      required: true
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Suggested category
+      options:
+        - slur
+        - sexual
+        - insult
+        - hate
+        - threat
+        - drug
+        - other / not sure
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Suggested severity
+      options:
+        - high
+        - medium
+        - low
+        - not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: variants
+    attributes:
+      label: Common obfuscated variants
+      description: Optional but very useful — leetspeak, separator-stripped, repetition, transliterated, or accented variants of the same term that should also match.
+
+  - type: textarea
+    id: cultural-context
+    attributes:
+      label: Cultural or linguistic context
+      description: For non-English entries, a one-line note on why the term is abusive in its language and which communities or registers it appears in. This helps with severity calibration.
