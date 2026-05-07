@@ -173,6 +173,49 @@ const SEPARATOR_RE = new RegExp(
 );
 
 /**
+ * Collapse runs of identical characters: any run of length ≥ `minRun` is
+ * replaced by `keep` copies of that character. Runs shorter than `minRun` are
+ * preserved verbatim.
+ *
+ * Implemented as a manual scan because the equivalent regex
+ * (`/(.)\1{minRun-1,}/g` with `$1.repeat(keep)`) blows V8's regex-engine stack
+ * around the 4-million-character mark on a single long run — a remote DoS
+ * vector via any unguarded `verlux.detect()` caller. The scan is O(n), uses
+ * no recursion, and is trivially bounded by input length.
+ *
+ * Newline-like characters (`\n`, `\r`, U+2028, U+2029) are deliberately
+ * excluded from collapse so semantics match the original `(.)` regex (which
+ * does not match newlines without the `s` flag).
+ */
+function collapseRuns(text: string, minRun: number, keep: number): string {
+  if (text.length < minRun) return text;
+  let out = '';
+  let i = 0;
+  while (i < text.length) {
+    const code = text.charCodeAt(i);
+    // Skip collapse for newline-like chars (\n, \r, U+2028, U+2029) so
+    // semantics match the original `(.)` regex, which without the `s` flag
+    // does not match newlines.
+    const collapsable =
+      code !== 0x0a && code !== 0x0d && code !== 0x2028 && code !== 0x2029;
+    let j = i + 1;
+    if (collapsable) {
+      while (j < text.length && text.charCodeAt(j) === code) j++;
+    }
+    const run = j - i;
+    if (run >= minRun) {
+      const c = text[i];
+      for (let k = 0; k < keep; k++) out += c;
+    } else {
+      // Preserve the original slice — correct for single chars and runs of
+      // newline-like chars that we deliberately did not collapse.
+      out += text.slice(i, j);
+    }
+    i = j;
+  }
+  return out;
+}
+/**
  * True iff every codepoint in `s` is plain ASCII (≤ 0x7F). Pure-ASCII inputs
  * cannot contain any of the obfuscation forms `unicodeFold` exists to handle,
  * so this check unlocks fast paths in both `unicodeFold` and `normalize`.
@@ -282,8 +325,10 @@ export function normalize(input: string): string {
   // Step 3: Single-char substitution
   text = decodeSingleChar(text);
 
-  // Step 4: Collapse repeated chars (3+ → 2)
-  text = text.replace(/(.)\1{2,}/g, '$1$1');
+  // Step 4: Collapse repeated chars (3+ → 2). Manual scan rather than regex —
+  // V8's Irregexp engine overflows its internal stack around 4M+ chars on
+  // `/(.)\1{2,}/g`, which was a remote DoS vector via `detect()`.
+  text = collapseRuns(text, 3, 2);
 
   // Step 5: Strip separators
   text = text.replace(SEPARATOR_RE, '');
@@ -299,8 +344,9 @@ export function normalizeVariants(input: string): string[] {
   const base = normalize(input);
   variants.add(base);
 
-  // Aggressive collapse: all repeated chars to 1
-  const aggressive = base.replace(/(.)\1+/g, '$1');
+  // Aggressive collapse: all repeated chars to 1. Manual scan, same reason
+  // as in `normalize()` — avoids a regex stack-overflow on huge runs.
+  const aggressive = collapseRuns(base, 2, 1);
   variants.add(aggressive);
 
   // No-collapse variant (some words have legit doubles)
