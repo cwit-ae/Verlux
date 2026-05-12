@@ -712,7 +712,9 @@ export const EN_WORDS: DictionaryEntry[] = [
     severity: "high",
     category: "insult",
     allowPartialMatch: false,
-    aliases: ["slt", "slutt", "sl00t", "sluts", "slutty"],
+    // 'slt' removed: the most common French SMS shorthand for "salut" (hi);
+    // far higher benign volume than chat-shorthand use as "slut".
+    aliases: ["slutt", "sl00t", "sluts", "slutty"],
   },
   {
     word: "whore",
