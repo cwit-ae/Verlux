@@ -715,6 +715,36 @@ function getRawSegments(input: string): RawSegment[] {
 // for Phase 1; Phase 1.5 (whitespace segments) needs the same handling.
 const CONTRACTION_RE = /^([A-Za-z]{2,})(['‘’])(?:ll|d|ve|re|s|m|t)$/i;
 
+// Boundary punctuation stripped from raw segments before normalization.
+// Brackets, quotes, sentence punctuation, and the hashtag prefix `#` are
+// structural — but several of them are also entries in SINGLE_MAP (the four
+// bracket openers `(` `[` `{` `<` all map to `c`, and `#` maps to `h`), so
+// without this strip a parenthetical like `(on` decodes to `con` (a French
+// high-severity insult) and a hashtag like `#oe` decodes to `hoe`. Real
+// obfuscation chars `@`, `$`, `|`, `!`, `+`, `*`, `^` and digits are
+// deliberately NOT stripped so leet-speak forms like `@$$hole`, `$lut`,
+// `|=uck`, `5lut` continue to match. The set is symmetric across both edges
+// so transposed punctuation like `><con` or `].con` also strips cleanly to a
+// correctly-positioned inner span.
+const LEADING_PUNCT_RE = /^[([{<>)\]}'"`‘’“”«»‹›,.;:?#]+/;
+const TRAILING_PUNCT_RE = /[([{<>)\]}'"`‘’“”«»‹›,.;:?#]+$/;
+
+function stripBoundaryPunct(segment: RawSegment): RawSegment | null {
+  let { value, start, end } = segment;
+  const lead = LEADING_PUNCT_RE.exec(value);
+  if (lead) {
+    value = value.slice(lead[0].length);
+    start += lead[0].length;
+  }
+  const trail = TRAILING_PUNCT_RE.exec(value);
+  if (trail) {
+    value = value.slice(0, value.length - trail[0].length);
+    end -= trail[0].length;
+  }
+  if (!value) return null;
+  return { value, start, end };
+}
+
 /**
  * Try to match a raw segment (may contain l33t chars, separators, etc.)
  * by normalizing it first and then checking the dictionary.
@@ -724,6 +754,9 @@ function matchRawSegment(
   index: DictionaryIndex,
   config: ResolvedConfig
 ): DetectionResult | null {
+  const stripped = stripBoundaryPunct(segment);
+  if (!stripped) return null;
+  segment = stripped;
   const raw = segment.value;
 
   // Check internal safelist
