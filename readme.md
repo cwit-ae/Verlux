@@ -368,7 +368,7 @@ We evaluated our dataset against a 90-sample test corpus structured to mirror th
 
 ### Substring-Collision Resistance
 
-In addition to the end-to-end benchmark above, our dataset is regression-tested against a dedicated corpus of 468 innocent inputs whose surface forms contain a profane substring — the classical _Scunthorpe_ problem. The corpus is reproduced in [`tests/false-positives.test.ts`](./tests/false-positives.test.ts) and runs as part of the standard Jest suite. Specific vocabulary is not reproduced here.
+In addition to the end-to-end benchmark above, our dataset is regression-tested against a dedicated corpus of 485 innocent inputs whose surface forms contain a profane substring — the classical _Scunthorpe_ problem. The corpus is reproduced in [`tests/false-positives.test.ts`](./tests/false-positives.test.ts) and runs as part of the standard Jest suite. Specific vocabulary is not reproduced here.
 
 | Category                                                                 | Items tested | False positives |
 | ------------------------------------------------------------------------ | ------------ | --------------- |
@@ -380,8 +380,8 @@ In addition to the end-to-end benchmark above, our dataset is regression-tested 
 | Place names containing a profane substring (classical _Scunthorpe_ case) | 18           | 0               |
 | Proper names that overlap with dictionary entries                        | 7            | 0               |
 | Medical and educational terminology                                      | 6            | 0               |
-| Fuzzy-match near-collisions (one edit away from a dictionary entry)      | 348          | 0               |
-| **Total**                                                                | **468**      | **0**           |
+| Fuzzy-match near-collisions (one edit away from a dictionary entry)      | 365          | 0               |
+| **Total**                                                                | **485**      | **0**           |
 
 > **Scope.** This corpus measures resistance to _substring-overlap_ false positives only — that is, inputs that incidentally contain profane characters within an unrelated word. It does **not** measure resistance to _exact-word_ collisions, where a dictionary entry appears verbatim inside an idiomatic, technical, or otherwise benign sentence (for example, the verb _"murder"_ inside the business idiom _"let us murder the competition"_, which is the single false positive recorded in the coverage benchmark above). Such exact-word collisions are an inherent property of any dictionary that takes incitement vocabulary seriously and are intended to be neutralised at integration time via the per-instance [`whitelist`](#configuration) configuration option.
 

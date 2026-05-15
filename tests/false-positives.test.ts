@@ -302,6 +302,24 @@ describe('False Positives — Innocent Words', () => {
     // near "incel" — 1-sub neighbours
     'uncle', 'uncles',
     'intel',
+    // near "toolbag" — ubiquitous UI term (1-sub r↔g, similarity 0.857)
+    'toolbar', 'toolbars',
+    // benign English words surfaced by scripts/audit-fuzzy-fp.js, each one
+    // edit from a dictionary entry (similarity ≥ 0.85)
+    'aspirate',     // near "asspirate" — medical/phonetics
+    'creatin', 'creatine', // near "cretin" — the supplement
+    'pargasite',    // near "parasite" — an amphibole mineral
+    'parakite',     // near "parasite" — kiting term
+    'belled',       // near "bellend" — fitted with a bell
+    'pithead',      // near "pinhead" — top of a mine shaft
+    'revoting',     // near "revolting" — to vote again
+    'conchie',      // near "coochie" — conscientious objector
+    'silkening',    // near "sickening" — making silky
+    'inferiors',    // near "inferior" — benign noun plural
+    'eradiate',     // near "eradicate" — archaic "to radiate"
+    'revulsive',    // near "repulsive" — a counterirritant
+    'despicably',   // near "despicable" — benign adverb form
+    'degenerated',  // near "degenerate" — "the situation degenerated"
   ];
 
   const allInnocentWords = [
