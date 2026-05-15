@@ -378,6 +378,29 @@ const SAFE_WORDS = new Set([
   // `savaged` fuzzy-matches `savages` (slur/high) at 1 edit, similarity 0.86.
   // Common past-tense verb — "the storm savaged the coast".
   'savaged',
+  // `toolbar` fuzzy-matches `toolbag` (insult/low) at 1 edit (r↔g),
+  // similarity 0.857 — ubiquitous UI term.
+  'toolbar', 'toolbars',
+
+  // ── Benign English words surfaced by scripts/audit-fuzzy-fp.js ──
+  // Each is a real, never-profane word that fuzzy-matches a dictionary
+  // entry at 1 edit (similarity ≥ 0.85). The canonical profane form and
+  // its own inflections remain detectable; only the innocent look-alike
+  // spelling is excused.
+  'aspirate', 'aspirated', 'aspirates', 'aspirating', 'aspiration', // ≠ asspirate (medical/phonetics)
+  'creatin', 'creatine',          // ≠ cretin (the supplement / amino acid)
+  'pargasite',                    // ≠ parasite (an amphibole mineral)
+  'parakite', 'parakites',        // ≠ parasite (kiting term)
+  'belled',                       // ≠ bellend (fitted with a bell / past tense of "bell")
+  'pithead', 'pitheads',          // ≠ pinhead (top of a mine shaft)
+  'revoting',                     // ≠ revolting (to vote again)
+  'conchie', 'conchies',          // ≠ coochie (slang for conscientious objector)
+  'silkening',                    // ≠ sickening (making silky)
+  'inferiors',                    // ≠ inferior (parallels safelisted "interior")
+  'eradiate',                     // ≠ eradicate (archaic: to shoot forth like rays)
+  'revulsive',                    // ≠ repulsive (medical: a counterirritant)
+  'despicably',                   // ≠ despicable (the benign adverb form)
+  'degenerated',                  // ≠ degenerate ("the situation degenerated")
 
   // ── 3-letter abbreviation collisions via aggressive-collapse ──
   // `normalizeVariants` collapses runs of repeated chars to one, so a 3-char
