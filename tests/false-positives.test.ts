@@ -322,11 +322,34 @@ describe('False Positives — Innocent Words', () => {
     'degenerated',  // near "degenerate" — "the situation degenerated"
   ];
 
+  // Cross-language exact and aggressive-normalization / transliteration-fold
+  // collisions surfaced by scripts/audit-all-fp.js. These are NOT substring
+  // overlaps — each is an everyday word that, after the repeated-letter
+  // collapse (`oo→o`, `ee→e`), the Hindi-romanization vowel fold (`oo→u`),
+  // or a direct cross-language exact match, lands on a profanity root/alias
+  // in another (or the same) language. The fold/collapse rules are
+  // load-bearing for obfuscation detection, so the benign words are
+  // safelisted rather than the rules weakened.
+  const crossLangAndFoldCollisions = [
+    'bite', 'bites',                       // == French `bite` / its `normalized` plural
+    'smooth', 'smoothly', 'smoothie',      // `oo→u` fold → English `smut`
+    'smoothies', 'smoothing',
+    'cook', 'cooks', 'cooked', 'cooking',  // `oo→o` collapse → alias `cok` of `cock` (HIGH)
+    'cookout', 'cookbook', 'cookery', 'cookware',
+    'kook', 'kooks', 'kooky', 'kookaburra',
+    'hail', 'hails', 'hailed', 'hailing',  // fold → English `hell`
+    'hailstorm', 'hailstone',
+    'heel', 'heels', 'heeled', 'heeling',  // `ee` collapse → English `hell`
+    'shale', 'shales', 'shaley',           // normalization → Hindi-Latin `saala`
+    'brawler', 'brawlers',                 // fuzzy → French `branler`
+    'booboo', 'booboos',                   // normalization → Spanish `bobo`
+  ];
+
   const allInnocentWords = [
     ...assWords, ...cockWords, ...cumWords, ...hellWords, ...buttWords,
     ...titWords, ...penWords, ...analWords, ...organWords, ...properNames,
     ...miscWords, ...ukPlaceNames, ...fuzzyCollisions, ...clWords,
-    ...numericStrings,
+    ...numericStrings, ...crossLangAndFoldCollisions,
   ];
 
   it.each(allInnocentWords)('should NOT flag "%s"', (word) => {
@@ -345,6 +368,9 @@ describe('False Positives — Innocent Words', () => {
     'fuck', 'fucking', 'fucked', 'shit', 'shitty', 'bullshit',
     'asshole', 'bitch', 'bitches', 'cunt', 'nigger', 'faggot',
     'bhenchod', 'bc', 'madarchod', 'mc', 'chutiya', 'gandu',
+    // Canonical forms whose benign look-alikes were safelisted this release —
+    // the real profanity (and obfuscated aliases) must still be caught.
+    'smut', 'smutty', 'cock', 'hell', 'bitte', 'saala', 'bobo',
   ];
 
   it.each(realProfanity)('should CATCH actual profanity: "%s"', (word) => {
