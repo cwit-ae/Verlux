@@ -381,6 +381,27 @@ const SAFE_WORDS = new Set([
   // `toolbar` fuzzy-matches `toolbag` (insult/low) at 1 edit (r↔g),
   // similarity 0.857 — ubiquitous UI term.
   'toolbar', 'toolbars',
+  // The transliterator's Hindi-romanization vowel fold `oo → u` is applied
+  // to all Latin input (transliterator.ts), so `smooth` yields the variant
+  // `smut`, which exact-matches the English `smut` entry. The fold is
+  // needed for genuine Hindi-Latin variants (e.g. `choot`→`chut`), so
+  // excuse the specific benign English word rather than narrow the fold.
+  'smooth', 'smoothly', 'smoothie', 'smoothies', 'smoothing',
+  // ── Aggressive-normalization collisions surfaced by audit-all-fp.js ──
+  // Repeated-letter collapse (`oo→o`, `ee→e`) and vowel folds map these
+  // everyday English words onto short profanity roots/aliases. Highest
+  // impact: `cook`/`kook` collapse to `cok` (alias of `cock`, severity
+  // HIGH) — flagging ordinary cooking text as severe profanity. The
+  // collapse/fold rules are load-bearing for obfuscation detection, so
+  // excuse the benign words rather than weaken normalization.
+  'cook', 'cooks', 'cooked', 'cooking', 'cookout', 'cookouts',
+  'cookbook', 'cookbooks', 'cookery', 'cookware', 'cookoff', 'cookoffs',
+  'kook', 'kooks', 'kooky', 'kookier', 'kookiest', 'kookaburra', 'kookaburras',
+  'hail', 'hails', 'hailed', 'hailing', 'hailstorm', 'hailstorms', 'hailstone', 'hailstones',
+  'heel', 'heels', 'heeled', 'heeling',
+  'shale', 'shales', 'shaley', 'shaly',
+  'brawler', 'brawlers',
+  'booboo', 'booboos',
 
   // ── Benign English words surfaced by scripts/audit-fuzzy-fp.js ──
   // Each is a real, never-profane word that fuzzy-matches a dictionary
@@ -473,6 +494,13 @@ const SAFE_WORDS = new Set([
   'orbite', 'orbital', 'orbiter',
   'cohabite', 'cohabiter', 'cohabitation',
   'exhibe', 'exhibé', 'exhiber', 'exhibition',
+  // Cross-language: the everyday English words `bite`/`bites` ("a snake
+  // bite", "the dog bites") are identical to the French entry `bite` and
+  // its plural in `normalized` (fr.ts), so they exact-match the French
+  // entry whenever all languages are loaded. Excuse the English spellings;
+  // the French canonical word `bite` is therefore NOT detected (accepted
+  // trade-off), but its alias forms (`bitte`, `bittes`, `b1te`) still are.
+  'bite', 'bites',
   // `cul` is partial-off so no substring issue, but fuzzy near-miss collisions:
   'culte', 'culto', 'culture', 'cultiver', 'cultivé', 'culturel',
   'calcul', 'calculer', 'circuler', 'circulation',

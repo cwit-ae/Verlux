@@ -10,6 +10,53 @@ _No unreleased changes yet._
 
 ---
 
+## [1.0.14] — 2026-05-17
+
+### Fixed
+
+- **Cross-language exact-collision false positives on the everyday English words `bite` and `bites`.** With all language packs loaded (the default), the English tokens `bite` and `bites` matched the French entry `bite` (slang for penis, severity `high`, category `sexual`) — `bites` via the plural listed in that entry's `normalized` array, `bite` via the canonical word — so ordinary English text such as _"a snake bite"_ or _"the dog bites"_ was reported as high-severity sexual profanity. Both spellings, with their benign inflections, are now in the internal safelist (`SAFE_WORDS`), which is consulted before every match tier in both `matchToken` and `matchRawSegment`. Trade-off, documented inline: the French canonical word `bite` is no longer detected even in genuine French text, but its obfuscated alias forms (`bitte`, `bittes`, `b1te`) remain detectable, so deliberate evasion is still caught.
+- **Transliteration-fold false positive on `smooth`.** The transliterator's Hindi-romanization vowel fold `oo → u` is applied to all Latin input, not only Devanagari-sourced text, so `smooth` produced the variant `smut`, which exact-matched the English `smut` entry (severity `low`, category `sexual`) at the transliteration tier. `smooth` and its inflections (`smoothly`, `smoothie`, `smoothies`, `smoothing`) are now safelisted. The fold itself is unchanged because it is load-bearing for genuine Hindi-Latin variants (for example `choot` → `chut`), which continue to be detected.
+- **Aggressive-normalization collisions on common English words, surfaced by a new broad audit.** The repeated-letter collapse (`oo → o`) and vowel folds collapsed several everyday words onto short profanity roots and aliases. The most damaging was `cook` / `kook` collapsing to `cok`, an alias of `cock` (severity **`high`**) — so text such as _"I love cooking"_ scored as severe profanity. Also fixed: `hail` and `heel` → `hell`, `shale` → Hindi-Latin `saala`, `brawler` → French `branler`, and `booboo` → Spanish `bobo`. These words and their benign inflections are now safelisted; the collapse/fold rules remain unchanged because they are required for obfuscation detection. The canonical profane forms (`cock`, `hell`, `saala`, `branler`, `bobo`) and their obfuscated variants are unaffected and still detected.
+
+### Added
+
+- **`scripts/audit-all-fp.js` — broad false-positive audit.** The existing `scripts/audit-fuzzy-fp.js` only inspects results where `matchType === 'fuzzy'` and `language === 'en'`, and so was structurally blind to the cross-language exact-match and normalization/transliteration-fold false-positive classes above. The new script sweeps every English word in the wordlist across all match types and all languages, filters out genuine inflections (where the matched root is a substring of the input), and groups the remaining suspicious clusters for triage. Not shipped in the package; run with `npm install --no-save an-array-of-english-words` then `node scripts/audit-all-fp.js`.
+
+### Tests
+
+- The substring-collision regression corpus in [`tests/false-positives.test.ts`](./tests/false-positives.test.ts) gains a dedicated `crossLangAndFoldCollisions` group (36 inputs) exercising the new safelist entries, plus assertions that the canonical profane forms (`smut`, `cock`, `hell`, `bitte`, `saala`, `bobo`) are still caught. README substring-collision corpus total updated 485 → 521 accordingly.
+
+---
+
+## [1.0.13] — 2026-05-13
+
+### Fixed
+
+- **Fuzzy false positives on benign English words one edit from a dictionary entry.** A batch of real, never-profane words surfaced by `scripts/audit-fuzzy-fp.js` — including `aspirate`/`aspirated`/`aspirates`/`aspirating`/`aspiration` (≠ _asspirate_), `creatin`/`creatine` (≠ _cretin_), `pargasite`/`parakite` (≠ _parasite_), `belled` (≠ _bellend_), `pithead` (≠ _pinhead_), `revoting` (≠ _revolting_), `conchie` (≠ _coochie_), `silkening` (≠ _sickening_), `inferiors`, `eradiate`, `revulsive`, `despicably`, `degenerated`, and the ubiquitous UI term `toolbar`/`toolbars` (≠ _toolbag_) — were each within one edit (similarity ≥ 0.85) of a dictionary entry and so fuzzy-matched. All are now in the internal safelist; the canonical profane forms and their own inflections remain detectable.
+
+### Tests
+
+- False-positive regression corpus expanded by 17 fuzzy near-collision inputs (348 → 365 fuzzy, 468 → 485 total) so every new safelist entry is exercised on each run; README substring-collision table updated to match.
+
+---
+
+## [1.0.12] — 2026-05-09
+
+### Fixed
+
+- **Boundary punctuation decoded into profanity via the leet table.** Raw segments were normalized without first stripping structural boundary punctuation, but several such characters are themselves leet-substitution sources: the bracket openers `(` `[` `{` `<` all map to `c`, and `#` maps to `h`. As a result a parenthetical like `(on` decoded to `con` (a French high-severity insult) and a hashtag like `#oe` decoded to `hoe`. A new `stripBoundaryPunct()` pass removes brackets, quotes, sentence punctuation, and the `#` prefix symmetrically from both edges of a raw segment before normalization, narrowing result positions to the inner span. Genuine obfuscation characters (`@`, `$`, `|`, `!`, `+`, `*`, `^`) and digits are deliberately **not** stripped, so leet forms such as `@$$hole`, `$lut`, `|=uck`, and `5lut` continue to match.
+- **`slt` removed as an alias of `slut`.** `slt` is the most common French SMS shorthand for _salut_ ("hi"); its benign volume vastly exceeds chat-shorthand use as _slut_, so the alias produced more false positives than true detections.
+
+### Added
+
+- **`scripts/test-ddos.mjs` — hands-on DoS / crash verification harness.** Exercises the input-boundary and repetition-collapse hardening from 1.0.11 against the local build, optionally diffing behaviour against the last pre-fix npm release (`--remote`, `verlux@1.0.10`). Each vector prints what the attacker sends and what the old versus current version does; a vector is "closed" when the current version throws cleanly or completes within a small time budget. Not shipped in the package.
+
+### Tests
+
+- Added [`tests/boundary-strip.test.ts`](./tests/boundary-strip.test.ts) covering the new boundary-punctuation strip across brackets, quotes, hashtags, transposed punctuation, and the preserved-leet-character cases.
+
+---
+
 ## [1.0.11] — 2026-05-07
 
 ### Security
@@ -157,7 +204,12 @@ _No unreleased changes yet._
 - Toxicity scoring weighted by severity, normalized against token count, with a repetition-spam multiplier.
 - ESM and CommonJS dual builds with bundled TypeScript declarations. Zero runtime dependencies. Node.js ≥ 18 supported.
 
-[Unreleased]: https://github.com/cwit-ae/Verlux/compare/v1.0.9...HEAD
+[Unreleased]: https://github.com/cwit-ae/Verlux/compare/v1.0.14...HEAD
+[1.0.14]: https://github.com/cwit-ae/Verlux/compare/v1.0.13...v1.0.14
+[1.0.13]: https://github.com/cwit-ae/Verlux/compare/v1.0.12...v1.0.13
+[1.0.12]: https://github.com/cwit-ae/Verlux/compare/v1.0.11...v1.0.12
+[1.0.11]: https://github.com/cwit-ae/Verlux/compare/v1.0.10...v1.0.11
+[1.0.10]: https://github.com/cwit-ae/Verlux/compare/v1.0.9...v1.0.10
 [1.0.9]: https://github.com/cwit-ae/Verlux/compare/v1.0.8...v1.0.9
 [1.0.8]: https://github.com/cwit-ae/Verlux/compare/v1.0.7...v1.0.8
 [1.0.7]: https://github.com/cwit-ae/Verlux/compare/v1.0.6...v1.0.7

@@ -1,6 +1,6 @@
 {
   "name": "verlux",
-  "version": "1.0.13",
+  "version": "1.0.14",
   "description": "Profanity and abuse detection across 5 languages with severity, category, and toxicity scoring per match. Unicode-obfuscation resistant, zero dependencies, fully offline.",
   "main": "dist/cjs/index.js",
   "module": "dist/esm/index.js",
