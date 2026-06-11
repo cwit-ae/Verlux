@@ -549,6 +549,20 @@ const SEVERITY_ORDER: Record<Severity, number> = {
   high: 2,
 };
 
+/**
+ * Minimum dictionary-key length matchable through a normalization-produced
+ * variant. The unified index contains 2-char aliases (`mc`, `bc`, `fk`, `pd`,
+ * `hs`, `mf`, `bj`, `hj`) that carry no signal once the surface form has been
+ * rewritten: the aggressive repeat-collapse in `normalizeVariants` folds
+ * benign acronyms onto them (`mmc`→`mc`, `fkk`→`fk`, `bbcc`→`bc`), and the
+ * Hinglish phonetic folds do the same (`bhc`→`bc`). Keys this short therefore
+ * match only when the surface form IS the key (Tier 1 exact lookup) or via an
+ * explicitly listed obfuscation alias (`m.c`, `b.c.`, `m-c`). This guard
+ * closes the whole acronym class structurally; the 3-char abbreviation
+ * entries in SAFE_WORDS above remain as defense-in-depth.
+ */
+const MIN_VARIANT_KEY_LENGTH = 3;
+
 interface DictionaryIndex {
   /** word/normalized/alias → entry (fast O(1) lookup) */
   wordMap: Map<string, DictionaryEntry>;
@@ -853,6 +867,7 @@ function matchRawSegment(
 
   for (const variant of variants) {
     if (config.whitelist.has(variant)) return null;
+    if (variant.length < MIN_VARIANT_KEY_LENGTH && variant !== rawLower) continue;
 
     const entry = index.wordMap.get(variant);
     if (entry && passesFilters(entry, config)) {
@@ -944,6 +959,7 @@ function matchToken(
   const variants = normalizeVariants(token.value);
   for (const variant of variants) {
     if (config.whitelist.has(variant)) return null;
+    if (variant.length < MIN_VARIANT_KEY_LENGTH && variant !== raw) continue;
     const normEntry = index.wordMap.get(variant);
     if (normEntry && passesFilters(normEntry, config)) {
       return buildResult(token, normEntry, 'normalized', 0.95);
@@ -955,6 +971,7 @@ function matchToken(
     const translit = transliterate(token.value);
     for (const t of translit) {
       const tNorm = normalize(t);
+      if (tNorm.length < MIN_VARIANT_KEY_LENGTH && tNorm !== raw) continue;
       const tEntry = index.wordMap.get(tNorm);
       if (tEntry && passesFilters(tEntry, config)) {
         return buildResult(token, tEntry, 'normalized', 0.9);
