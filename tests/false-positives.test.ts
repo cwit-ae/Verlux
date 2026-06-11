@@ -345,11 +345,29 @@ describe('False Positives — Innocent Words', () => {
     'booboo', 'booboos',                   // normalization → Spanish `bobo`
   ];
 
+  // ── Short-alias acronym class ──
+  // The unified index registers 2-char aliases (`mc`, `bc`, `fk`, `pd`,
+  // `hs`, `mf`, `bj`, `hj`). These are matchable only on an exact surface
+  // hit (MIN_VARIANT_KEY_LENGTH in matcher.ts) — the inputs below used to
+  // collapse onto them via the aggressive repeat-collapse or the Hinglish
+  // phonetic folds and must stay clean.
+  const shortAliasCollisions = [
+    'mmc*', '*mmc', 'mmmc', 'mmcc',   // repeat-collapse → `mc` (madarchod)
+    'bbcc', 'bbbc',                   // repeat-collapse → `bc` (bhenchod)
+    'bhc',                            // translit fold `bh→b` → `bc`
+    'fkk', 'ffk', 'FKK', 'FKK beach', // repeat-collapse → `fk` (fuck); FKK = German naturism
+    'ppdd', 'pddd',                   // repeat-collapse → `pd` (pédé)
+    'hhss', 'hssss',                  // repeat-collapse → `hs` (hurensohn)
+    'mmff',                           // repeat-collapse → `mf` (motherfucker)
+    'bjjj',                           // repeat-collapse → `bj` (blowjob)
+    'hjjj',                           // repeat-collapse → `hj` (handjob)
+  ];
+
   const allInnocentWords = [
     ...assWords, ...cockWords, ...cumWords, ...hellWords, ...buttWords,
     ...titWords, ...penWords, ...analWords, ...organWords, ...properNames,
     ...miscWords, ...ukPlaceNames, ...fuzzyCollisions, ...clWords,
-    ...numericStrings, ...crossLangAndFoldCollisions,
+    ...numericStrings, ...crossLangAndFoldCollisions, ...shortAliasCollisions,
   ];
 
   it.each(allInnocentWords)('should NOT flag "%s"', (word) => {
@@ -371,6 +389,10 @@ describe('False Positives — Innocent Words', () => {
     // Canonical forms whose benign look-alikes were safelisted this release —
     // the real profanity (and obfuscated aliases) must still be caught.
     'smut', 'smutty', 'cock', 'hell', 'bitte', 'saala', 'bobo',
+    // Short aliases must still hit when typed exactly or via their
+    // explicitly listed punctuated forms (Tier 1 surface lookup is
+    // unaffected by MIN_VARIANT_KEY_LENGTH).
+    'fk', 'mf', 'bj', 'hj', 'pd', 'hs', 'm.c', 'm.c.', 'm-c', 'b.c', 'b-c',
   ];
 
   it.each(realProfanity)('should CATCH actual profanity: "%s"', (word) => {
