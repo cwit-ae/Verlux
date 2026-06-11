@@ -15,7 +15,7 @@ export const HI_LATN_WORDS: DictionaryEntry[] = [
     severity: 'high',
     category: 'sexual',
     allowPartialMatch: false,
-    aliases: ['bc', 'b.c', 'b.c.', 'bhnchd', 'benchd', 'bhenchd', 'banchd', 'behnchod', 'bhenc*od'],
+    aliases: ['bc', 'b.c', 'b.c.', 'b-c', 'bhnchd', 'benchd', 'bhenchd', 'banchd', 'behnchod', 'bhenc*od'],
   },
   {
     word: 'madarchod',
@@ -24,7 +24,7 @@ export const HI_LATN_WORDS: DictionaryEntry[] = [
     severity: 'high',
     category: 'sexual',
     allowPartialMatch: false,
-    aliases: ['mc', 'm.c', 'm.c.', 'mdrchd', 'madarchd', 'motherchod', 'machod', 'mamachod'],
+    aliases: ['mc', 'm.c', 'm.c.', 'm-c', 'mdrchd', 'madarchd', 'motherchod', 'machod', 'mamachod'],
   },
   {
     word: 'chutiya',
