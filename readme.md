@@ -36,7 +36,7 @@
 - **Five languages, one call.** English, Hinglish, Spanish, French, and German are scanned in the same pass with no per-call language hint required — including inputs that mix multiple languages in a single sentence.
 - **Severity, category, and toxicity score per match.** Every detection carries a `severity` (`low` / `medium` / `high`) and a `category` (`slur`, `sexual`, `insult`, `hate`, `threat`, `drug`, `other`), and `score()` returns a normalized toxicity score with a complete category breakdown — suitable for moderation queues and call-centre dashboards.
 - **Cross-script Unicode obfuscation resistance.** Cyrillic and Greek look-alike codepoints (`fuсk` with a Cyrillic `с`), fullwidth forms (`ｆｕｃｋ`), mathematical-alphanumeric variants (`𝐟𝐮𝐜𝐤`), ligatures, zero-width / invisible characters, and combining-mark overlays (`f̸u̸c̸k̸`) are all folded to canonical ASCII before matching — and result positions are mapped back to the original input so highlighters, censors, and downstream tooling keep working unchanged.
-- **Zero dependencies, fully offline, ~150 µs per sentence.** A 2 MB memory footprint and a 3 ms cold start. Substring-collision-resistant against a 468-input regression corpus.
+- **Zero dependencies, fully offline, ~150 µs per sentence.** A 2 MB memory footprint and a 3 ms cold start. Substring-collision-resistant against a 581-input regression corpus.
 
 ```ts
 import { verlux } from "verlux";
@@ -368,7 +368,7 @@ We evaluated our dataset against a 90-sample test corpus structured to mirror th
 
 ### Substring-Collision Resistance
 
-In addition to the end-to-end benchmark above, our dataset is regression-tested against a dedicated corpus of 521 innocent inputs whose surface forms contain a profane substring — the classical _Scunthorpe_ problem. The corpus is reproduced in [`tests/false-positives.test.ts`](./tests/false-positives.test.ts) and runs as part of the standard Jest suite. Specific vocabulary is not reproduced here.
+In addition to the end-to-end benchmark above, our dataset is regression-tested against a dedicated corpus of 581 innocent inputs whose surface forms contain a profane substring — the classical _Scunthorpe_ problem. The corpus is reproduced in [`tests/false-positives.test.ts`](./tests/false-positives.test.ts) and runs as part of the standard Jest suite. Specific vocabulary is not reproduced here.
 
 | Category                                                                 | Items tested | False positives |
 | ------------------------------------------------------------------------ | ------------ | --------------- |
@@ -380,11 +380,14 @@ In addition to the end-to-end benchmark above, our dataset is regression-tested 
 | Place names containing a profane substring (classical _Scunthorpe_ case) | 18           | 0               |
 | Proper names that overlap with dictionary entries                        | 7            | 0               |
 | Medical and educational terminology                                      | 6            | 0               |
-| Fuzzy-match near-collisions (one edit away from a dictionary entry)      | 365          | 0               |
+| Fuzzy-match near-collisions (one edit away from a dictionary entry)      | 401          | 0               |
 | Cross-language & normalization-fold collisions (exact / collapsed forms) | 36           | 0               |
-| **Total**                                                                | **521**      | **0**           |
+| Everyday UI words previously hit by an over-eager l33t substitution      | 7            | 0               |
+| Pure-digit tokens (HTTP codes, years) that would l33t-decode to profanity | 10          | 0               |
+| Acronyms whose repeated-letter collapse lands on a 2-char abbreviation alias | 18       | 0               |
+| **Total**                                                                | **581**      | **0**           |
 
-> **Scope.** This corpus measures resistance to _substring-overlap_ false positives only — that is, inputs that incidentally contain profane characters within an unrelated word. It does **not** measure resistance to _exact-word_ collisions, where a dictionary entry appears verbatim inside an idiomatic, technical, or otherwise benign sentence (for example, the verb _"murder"_ inside the business idiom _"let us murder the competition"_, which is the single false positive recorded in the coverage benchmark above). Such exact-word collisions are an inherent property of any dictionary that takes incitement vocabulary seriously and are intended to be neutralised at integration time via the per-instance [`whitelist`](#configuration) configuration option. The one bounded exception, covered by the final row above, is a single benign token that collides with a _different language's_ dictionary entry or with a profanity root only after the normalization/transliteration folds (for example the everyday English word _"cook"_ collapsing onto an alias of a high-severity term); these are neutralised in the shipped safelist rather than left to integration-time configuration.
+> **Scope.** This corpus measures resistance to _substring-overlap_ false positives only — that is, inputs that incidentally contain profane characters within an unrelated word. It does **not** measure resistance to _exact-word_ collisions, where a dictionary entry appears verbatim inside an idiomatic, technical, or otherwise benign sentence (for example, the verb _"murder"_ inside the business idiom _"let us murder the competition"_, which is the single false positive recorded in the coverage benchmark above). Such exact-word collisions are an inherent property of any dictionary that takes incitement vocabulary seriously and are intended to be neutralised at integration time via the per-instance [`whitelist`](#configuration) configuration option. The one bounded exception, covered by the cross-language row above, is a single benign token that collides with a _different language's_ dictionary entry or with a profanity root only after the normalization/transliteration folds (for example the everyday English word _"cook"_ collapsing onto an alias of a high-severity term); these are neutralised in the shipped safelist rather than left to integration-time configuration. Two-character abbreviation aliases (common shorthand for high-severity terms in several languages) are additionally gated structurally: they match only when the input surface form is the alias itself or an explicitly listed punctuated variant, so arbitrary acronyms — including ones not present in any safelist — can never reach them through the repetition-collapse, l33t-decode, or transliteration folds.
 
 ### Unicode Obfuscation Resistance
 
@@ -417,7 +420,7 @@ Measured on commodity developer hardware with the full multi-language index load
 | Cold start                    | Approximately 3 ms                                                  |
 | Memory footprint              | Approximately 2 MB                                                  |
 | Runtime dependencies          | 0                                                                   |
-| Test suite                    | 776 tests passing                                                   |
+| Test suite                    | 889 tests passing                                                   |
 
 > **Disclaimer.** All figures above are reported on the datasets, hardware, and Node.js versions available at the time of publication. They are provided for informational purposes only and do not constitute a guarantee of performance or accuracy for any specific production workload. Consumers are strongly encouraged to validate Verlux against their own representative data before relying on it in critical systems.
 
