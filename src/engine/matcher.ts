@@ -168,8 +168,10 @@ const SAFE_WORDS = new Set([
   'mormon',
   // Close to "stab" (business context)
   'stable', 'stability', 'establish', 'established',
-  // Close to "fraud" (legitimate business term - keep it detectable)
-  // "fraud" IS flagged intentionally — it's relevant in call center abuse
+  // NOTE: "fraud"/"scam"/"scammer"/"thief"/"crook" are NO LONGER dictionary
+  // entries — they name the subject of support calls and are not treated as
+  // profanity. The safewords below stay as defensive coverage for benign words
+  // that used to fuzzy-collide with the removed "scam"/"scammer" spellings.
   // Close to "scam"
   'scanner', 'scanning',
   // Close to "scammer" (one-edit collisions at similarity 0.857)

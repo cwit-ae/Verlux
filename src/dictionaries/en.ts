@@ -1607,42 +1607,15 @@ export const EN_WORDS: DictionaryEntry[] = [
     allowPartialMatch: false,
     aliases: ["liars"],
   },
-  {
-    word: "scammer",
-    normalized: ["sc4mmer", "scamm3r"],
-    language: "en",
-    severity: "medium",
-    category: "insult",
-    allowPartialMatch: false,
-    aliases: ["scam", "scammers"],
-  },
-  {
-    word: "fraud",
-    normalized: ["fr4ud"],
-    language: "en",
-    severity: "medium",
-    category: "insult",
-    allowPartialMatch: false,
-    aliases: ["frauds", "fraudster", "fraudsters"],
-  },
-  {
-    word: "crook",
-    normalized: ["cr00k", "cr0ok"],
-    language: "en",
-    severity: "medium",
-    category: "insult",
-    allowPartialMatch: false,
-    aliases: ["crooks"],
-  },
-  {
-    word: "thief",
-    normalized: ["th1ef", "thi3f"],
-    language: "en",
-    severity: "medium",
-    category: "insult",
-    allowPartialMatch: false,
-    aliases: ["thieves", "thiefs"],
-  },
+  // NOTE: "scammer"/"scam", "fraud"/"fraudster", "thief"/"thieves", and
+  // "crook" were intentionally REMOVED from the dictionary. They name the
+  // *subject* of a support call ("I want to report fraud", "is this a scam?",
+  // "my card was stolen by a thief") far more often than they are used to
+  // abuse an agent. Their dominant sense is a neutral crime/finance noun, so
+  // flagging them produced unacceptable false positives in customer-service
+  // transcripts. Genuine abuse ("you are a X") is still covered by the phrase
+  // dictionary and the remaining insult entries — the profanity purpose of the
+  // package is unchanged.
   {
     word: "braindead",
     normalized: ["bra1ndead", "braind3ad"],
