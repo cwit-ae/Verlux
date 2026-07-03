@@ -6,7 +6,13 @@ Each entry names *what* changed and, where the reasoning is not obvious from the
 
 ## [Unreleased]
 
-_No unreleased changes yet._
+### Changed
+
+- **Neutral crime/report nouns removed from the English dictionary — `fraud`, `scammer`, `thief`, and `crook`.** These four entries (category `insult`, severity `medium`) collectively covered `fraud` / `frauds` / `fr4ud` / `fraudster` / `fraudsters`, `scammer` / `scam` / `scammers` / `sc4mmer` / `scamm3r`, `thief` / `th1ef` / `thi3f` / `thieves` / `thiefs`, and `crook` / `cr00k` / `crooks`. In customer-support text these words overwhelmingly name the *subject* of a conversation — _"I want to report fraud on my account"_, _"is this a scam?"_, _"my card was stolen by a thief"_ — rather than abuse aimed at an agent, so exact-matching them produced unacceptable false positives on ordinary fraud, dispute, and security reports (the reason most people call a bank). They were previously flagged intentionally; that decision is reversed. The package's profanity purpose is unchanged: every other insult, slur, threat, and dehumanising term still matches, and overt abuse of the form _"you are a …"_ remains covered by the phrase dictionary. Callers who need these terms flagged for their own use case can re-add them with `addWords()`.
+
+### Docs
+
+- README English coverage table updated: total word count 523 → 519, and "Call-centre abuse vocabulary" 21 → 17. Added a note under **Use Cases → Call-centre and customer support** explaining why the crime/report nouns are intentionally not treated as profanity.
 
 ---
 
