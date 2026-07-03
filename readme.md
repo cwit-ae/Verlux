@@ -430,7 +430,7 @@ Measured on commodity developer hardware with the full multi-language index load
 
 **Total:** 5 languages — 746 words and 127 phrases across English, Hinglish, Spanish, French, and German. The tables below describe the dictionary at the category level only. Specific vocabulary is deliberately omitted from this document; the authoritative wordlists reside under [`src/dictionaries/`](./src/dictionaries).
 
-### English — 523 words, 75 phrases
+### English — 519 words, 75 phrases
 
 | Category                         | Entries | Scope                                                                                                         |
 | -------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------- |
@@ -440,7 +440,7 @@ Measured on commodity developer hardware with the full multi-language index load
 | Sexual and anatomical terms      | 55+     | Commonly used sexual and anatomical profanity, incorporated in part from the Google Profanity Words list      |
 | General insults                  | 30+     | Everyday profanity and insults in common English usage                                                        |
 | Sexist and misogynistic terms    | 8       | Pejoratives targeting women                                                                                   |
-| Call-centre abuse vocabulary     | 21      | Terms frequently encountered in customer-support complaint data                                               |
+| Call-centre abuse vocabulary     | 17      | Agent-directed insults encountered in customer-support complaint data                                         |
 | Dehumanising vocabulary          | 12      | Language that frames people as vermin, refuse, or non-human                                                   |
 | Hate and ideology terms          | 10      | Extremist-ideology references and related symbols                                                             |
 | Threats and violence             | 13      | Explicit verbs of physical harm                                                                               |
@@ -490,6 +490,8 @@ Covers standard High German invective. Handles all umlauts (`ä`, `ö`, `ü`, `�
 ### Call-centre and customer support
 
 Detect agent- or customer-directed abuse in live chat and email. Severity levels enable tiered escalation:
+
+> **Note — neutral crime/report nouns are not treated as profanity.** Words such as `fraud`, `fraudster`, `scam`, `scammer`, `thief`, and `crook` are deliberately **not** in the dictionary: in support conversations they overwhelmingly name the *subject* of a call (_"I want to report fraud"_, _"is this a scam?"_, _"my card was stolen by a thief"_) rather than abuse directed at an agent. Flagging them misclassified ordinary fraud, dispute, and security reports. Genuine abuse is still caught by the phrase dictionary and the remaining insult vocabulary. If your use case needs these terms flagged, add them via `addWords()`.
 
 ```ts
 const result = verlux.score(customerMessage);
