@@ -2,7 +2,7 @@
  * False positive tests — the Scunthorpe problem.
  * These words contain profane substrings but MUST NOT be flagged.
  */
-import { verlux } from '../src/index';
+import { verlux, createInstance } from '../src/index';
 
 describe('False Positives — Innocent Words', () => {
   // Words containing "ass"
@@ -296,8 +296,9 @@ describe('False Positives — Innocent Words', () => {
     'heck',
     'neck', 'necks',
     'peck', 'pecks',
-    // near "haji" — distinguish religious pilgrim terms from slur
-    'hajj', 'hajji', 'hadj',
+    // pilgrimage terms, the honorific for one who has performed Hajj, and a
+    // common given name / form of address — none of these are profanity
+    'hajj', 'hajji', 'hadj', 'hadji', 'haji', 'hajis',
     'haiku',
     // near "incel" — 1-sub neighbours
     'uncle', 'uncles',
@@ -398,5 +399,58 @@ describe('False Positives — Innocent Words', () => {
   it.each(realProfanity)('should CATCH actual profanity: "%s"', (word) => {
     const results = verlux.detect(word);
     expect(results.length).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * The internal safelist is keyed by the language in which a surface form is a
+ * legitimate word, so the same spelling can be safe in one language and
+ * flagged in another. Under the default all-languages config every bucket is
+ * active; scoping `languages` deactivates the others.
+ */
+describe('Language-scoped safelist', () => {
+  const CROSS_LANGUAGE_COLLISIONS: Array<[string, string]> = [
+    // [ everyday English word, language whose dictionary it collides with ]
+    ['con', 'fr'],     // fr: insult/high — "pros and cons", "a con artist"
+    ['cons', 'fr'],    // fr: `normalized` plural of `con`
+    ['bite', 'fr'],    // fr: sexual — "a snake bite"
+    ['bites', 'fr'],   // fr: `normalized` plural of `bite`
+  ];
+
+  describe('safe under the default all-languages config', () => {
+    it.each(CROSS_LANGUAGE_COLLISIONS)('does NOT flag "%s"', (word) => {
+      expect(verlux.detect(word)).toHaveLength(0);
+    });
+  });
+
+  describe('still detected when scoped to the language that owns them', () => {
+    it.each(CROSS_LANGUAGE_COLLISIONS)('flags "%s" under languages:[%s]', (word, language) => {
+      const scoped = createInstance({ languages: [language] });
+      const results = scoped.detect(word);
+      expect(results.length).toBeGreaterThan(0);
+      expect(results[0].language).toBe(language);
+    });
+  });
+
+  it('keeps the language-neutral bucket active under every scope', () => {
+    // Acronyms and brand names are safe regardless of which packs are loaded.
+    for (const language of ['en', 'fr', 'es', 'de', 'hi-latn']) {
+      const scoped = createInstance({ languages: [language] });
+      expect(scoped.detect('bbc')).toHaveLength(0);
+      expect(scoped.detect('nike')).toHaveLength(0);
+    }
+  });
+
+  describe('"sale" is no longer an alias of the Hinglish insult "saala"', () => {
+    const commerce = [
+      'sale', 'sales', 'Big sale this weekend', 'sale price', 'end of season sales',
+    ];
+    it.each(commerce)('does NOT flag "%s"', (text) => {
+      expect(verlux.detect(text)).toHaveLength(0);
+    });
+    it('still flags the canonical "saala" and the "saale" spelling', () => {
+      expect(verlux.detect('saala').length).toBeGreaterThan(0);
+      expect(verlux.detect('saale').length).toBeGreaterThan(0);
+    });
   });
 });

@@ -119,7 +119,11 @@ export const HI_LATN_WORDS: DictionaryEntry[] = [
     severity: 'medium',
     category: 'insult',
     allowPartialMatch: false,
-    aliases: ['sale', 'saale', 'sali', 'saali'],
+    // NOTE: `sale` was removed as an alias. It is one of the most common words
+    // in English commerce text ("50% off sale", "sale price"), and every such
+    // message was flagged insult/medium whenever hi-latn was loaded — which is
+    // the default. `saale` covers the genuine Hinglish spelling.
+    aliases: ['saale', 'sali', 'saali'],
   },
   {
     word: 'kutta',

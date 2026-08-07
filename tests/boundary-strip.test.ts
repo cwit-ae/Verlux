@@ -1,4 +1,4 @@
-import { verlux } from '../src/index';
+import { verlux, createInstance } from '../src/index';
 
 describe('Boundary punctuation strip + slt removal', () => {
   describe('bracket-class openers no longer fabricate French "con"', () => {
@@ -51,8 +51,16 @@ describe('Boundary punctuation strip + slt removal', () => {
       expect(r[0].matched).toBe('shit');
       expect(r[0].position).toEqual([1, 5]);
     });
-    it('(con) still matches French con (genuine usage)', () => {
-      const r = verlux.detect('(con)');
+    it('(cul) still matches French cul (genuine usage)', () => {
+      const r = verlux.detect('(cul)');
+      expect(r.length).toBeGreaterThan(0);
+      expect(r[0].matched).toBe('cul');
+      expect(r[0].position).toEqual([1, 4]);
+    });
+    it('(con) matches French con on a French-scoped instance', () => {
+      // Safelisted as English under the default config; see the
+      // language-scoped safelist tests in false-positives.test.ts.
+      const r = createInstance({ languages: ['fr'] }).detect('(con)');
       expect(r.length).toBeGreaterThan(0);
       expect(r[0].matched).toBe('con');
       expect(r[0].position).toEqual([1, 4]);
@@ -72,20 +80,46 @@ describe('Boundary punctuation strip + slt removal', () => {
   });
 
   describe('symmetric strip handles transposed/closer-leading punctuation', () => {
-    it('"><con" strips both ends and reports con at position [2,5]', () => {
-      const r = verlux.detect('><con');
+    // Fixture is the French `cul` rather than `con`: under the default
+    // all-languages config `con` now resolves through the `en` safelist bucket
+    // (it is an everyday English noun), so it is no longer a valid probe for
+    // punctuation stripping. `cul` is the same length, so the expected
+    // positions are unchanged.
+    it('"><cul" strips both ends and reports cul at position [2,5]', () => {
+      const r = verlux.detect('><cul');
       expect(r.length).toBeGreaterThan(0);
-      expect(r[0].matched).toBe('con');
+      expect(r[0].matched).toBe('cul');
       expect(r[0].position).toEqual([2, 5]);
     });
-    it('"].con" strips both leading chars', () => {
-      const r = verlux.detect('].con');
+    it('"].cul" strips both leading chars', () => {
+      const r = verlux.detect('].cul');
       expect(r.length).toBeGreaterThan(0);
-      expect(r[0].matched).toBe('con');
+      expect(r[0].matched).toBe('cul');
       expect(r[0].position).toEqual([2, 5]);
     });
     it('"})on" is no longer flagged (closers stripped, "on" left)', () => {
       expect(verlux.detect('})on')).toHaveLength(0);
+    });
+
+    // The original `con` probes, kept intact against a French-scoped instance
+    // where the `en` bucket is inactive and `con` is detectable again.
+    describe('French-scoped instance still strips around "con"', () => {
+      const fr = createInstance({ languages: ['fr'] });
+      it('"><con" strips both ends and reports con at position [2,5]', () => {
+        const r = fr.detect('><con');
+        expect(r.length).toBeGreaterThan(0);
+        expect(r[0].matched).toBe('con');
+        expect(r[0].position).toEqual([2, 5]);
+      });
+      it('"].con" strips both leading chars', () => {
+        const r = fr.detect('].con');
+        expect(r.length).toBeGreaterThan(0);
+        expect(r[0].matched).toBe('con');
+        expect(r[0].position).toEqual([2, 5]);
+      });
+      it('"})on" is still not flagged', () => {
+        expect(fr.detect('})on')).toHaveLength(0);
+      });
     });
   });
 });
