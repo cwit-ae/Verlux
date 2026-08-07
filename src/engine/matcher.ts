@@ -17,10 +17,58 @@ import { transliterate } from './transliterator.js';
 import { AhoCorasick } from './aho-corasick.js';
 
 /**
- * Internal safelist — legitimate English words that are close to profanity
- * but should never be flagged. Prevents fuzzy matching false positives.
+ * Internal safelist, keyed by the language in which the surface form is a
+ * legitimate word. A bucket is active only when that language's dictionary is
+ * loaded, so a word can be safe in one language and still flagged in another:
+ * `con` is an everyday English noun but a high-severity French insult, and
+ * `bite` is an everyday English verb but the French word for a penis. Under
+ * the default all-languages config every bucket is active and the effective
+ * safelist is the union — identical to the flat set this replaced. Scoping
+ * detection (`languages: ['fr']`) drops the `en` bucket and restores French
+ * detection of those words.
+ *
+ * Keying rule: a word belongs to the bucket(s) where it is INNOCENT, not the
+ * bucket whose dictionary produces the false match. Entries that are innocent
+ * everywhere — acronyms, brands, proper nouns — go in `*`, which is always
+ * active.
  */
-const SAFE_WORDS = new Set([
+const NEUTRAL_SAFE_WORDS: readonly string[] = [
+  // ── 3-letter abbreviation collisions via aggressive-collapse ──
+  // `normalizeVariants` collapses runs of repeated chars to one, so a 3-char
+  // input like `bcc` produces the variant `bc` — which is registered as an
+  // alias of the Hindi-Latin slur `bhenchod`. Same trap exists for several
+  // other 2-char aliases in other languages. Safelist the real-world benign
+  // 3-char abbreviations so they aren't flagged via the collapsed variant.
+  'bcc',           // email blind-carbon-copy field (alias `bc` → bhenchod)
+  'bbc',           // British Broadcasting Corp. (alias `bc` → bhenchod)
+  'mcc',           // Marylebone Cricket Club / Mission Control Center (alias `mc` → madarchod)
+  'mmc',           // MultiMediaCard / Marketing Mix Modeling (alias `mc` → madarchod)
+  'pdd',           // Pervasive Developmental Disorder (alias `pd` → pédé)
+  'ppd',           // Postpartum Depression / pre-paid (alias `pd` → pédé)
+  'hhs',           // US Health & Human Services (alias `hs` → hurensohn)
+  'hss',           // Hospital for Special Surgery (alias `hs` → hurensohn)
+  'mff',           // common acronym (alias `mf` → motherfucker)
+  'mmf',           // common acronym (alias `mf` → motherfucker)
+  'bjj',           // Brazilian Jiu-Jitsu (alias `bj` → blowjob)
+  'hjj',           // initials/abbreviation (alias `hj` → handjob)
+
+  // ── Exact-alias collisions with brand / tech / biology / engineering terms ──
+  // These are aliases of slur/profanity entries whose benign meaning dominates
+  // in normal professional or descriptive text. The canonical slur form is left
+  // detectable; only the colliding alias spelling is excused.
+  'mongo',     // MongoDB shorthand (alias of `mongoloid`)
+  'coke',      // Coca-Cola / soft drink (alias of `cocaine`)
+  'heron',     // bird species (alias of `heroin`)
+  'nike',      // Nike brand (alias of French `niquer`)
+  'dike',      // civil-engineering / geological term for an embankment or rock intrusion (alias of `dyke`)
+  'pouf',      // upholstered footstool / furniture term (alias of `poofter`)
+  'rand',      // C `rand()` / South African Rand currency / Ayn Rand / RAND Corp (alias of Hindi `randi`)
+  'rands',     // plural — Rand currency, RAND staff
+  'wang',      // Wang — extremely common Chinese surname (~95M people); also Wang Computer, Vera Wang, Wang Wei. The mild slang sense (severity:low) is dwarfed by surname use.
+  'wangs',     // plural / possessive form of the surname
+];
+
+const EN_SAFE_WORDS: readonly string[] = [
   // Close to "vagina"
   'vaginal', 'vaginally',
   // Close to "penis"
@@ -361,8 +409,11 @@ const SAFE_WORDS = new Set([
   // Close to "stab" — already covered with stable/stability/establish; add "stag" (already), "scab"
   'scab', 'scabs', 'scabbed',
   // Close to "kill" — already covered
-  // Close to "haji" — "hajj" pilgrimage IS a religious term, leave; add "haiku/hadji-allowed-religious"
-  'hajj', 'hajji', 'hadj',  // pilgrim terms — religious, distinct from slur "haji"
+  // Hajj / haji family — pilgrimage terms, the honorific for one who has
+  // performed Hajj, and a very common given name and form of address. No
+  // dictionary entry exists for any of these; safelisted as defense-in-depth
+  // so fuzzy matching cannot pull them onto a neighbouring entry.
+  'hajj', 'hajji', 'hadj', 'hadji', 'haji', 'hajis', 'hajjis',
   'haiku', 'haikus',
   // Close to "incel" — "uncle/intel/install"
   'uncle', 'uncles',
@@ -425,39 +476,25 @@ const SAFE_WORDS = new Set([
   'despicably',                   // ≠ despicable (the benign adverb form)
   'degenerated',                  // ≠ degenerate ("the situation degenerated")
 
-  // ── 3-letter abbreviation collisions via aggressive-collapse ──
-  // `normalizeVariants` collapses runs of repeated chars to one, so a 3-char
-  // input like `bcc` produces the variant `bc` — which is registered as an
-  // alias of the Hindi-Latin slur `bhenchod`. Same trap exists for several
-  // other 2-char aliases in other languages. Safelist the real-world benign
-  // 3-char abbreviations so they aren't flagged via the collapsed variant.
-  'bcc',           // email blind-carbon-copy field (alias `bc` → bhenchod)
-  'bbc',           // British Broadcasting Corp. (alias `bc` → bhenchod)
-  'mcc',           // Marylebone Cricket Club / Mission Control Center (alias `mc` → madarchod)
-  'mmc',           // MultiMediaCard / Marketing Mix Modeling (alias `mc` → madarchod)
-  'pdd',           // Pervasive Developmental Disorder (alias `pd` → pédé)
-  'ppd',           // Postpartum Depression / pre-paid (alias `pd` → pédé)
-  'hhs',           // US Health & Human Services (alias `hs` → hurensohn)
-  'hss',           // Hospital for Special Surgery (alias `hs` → hurensohn)
-  'mff',           // common acronym (alias `mf` → motherfucker)
-  'mmf',           // common acronym (alias `mf` → motherfucker)
-  'bjj',           // Brazilian Jiu-Jitsu (alias `bj` → blowjob)
-  'hjj',           // initials/abbreviation (alias `hj` → handjob)
+  // ── Cross-language collisions: everyday English words that exact-match a
+  // NON-English dictionary entry whenever that language is also loaded. These
+  // live in the `en` bucket, so scoping detection to the other language
+  // (`languages: ['fr']`) drops them and restores detection there.
+  // `bite`/`bites` ("a snake bite", "the dog bites") are identical to the
+  // French entry `bite` and its plural in `normalized` (fr.ts). Its alias
+  // forms (`bitte`, `bittes`, `b1te`) stay detectable in every config.
+  'bite', 'bites',
+  // `con`/`cons` ("pros and cons", "a con artist") are identical to the French
+  // entry `con` (insult/high) and its `normalized` plural (fr.ts). English
+  // text mentioning tradeoffs was flagged high-severity on every call.
+  'con', 'cons',
+  // `sale`/`sales` were an alias of the Hindi-Latin insult `saala` — every
+  // promotional message ("50% off sale") flagged medium. The alias is gone
+  // from hi-latn.ts; these remain as fuzzy-collision cover.
+  'sale', 'sales',
+];
 
-  // ── Exact-alias collisions with brand / tech / biology / engineering terms ──
-  // These are aliases of slur/profanity entries whose benign meaning dominates
-  // in normal professional or descriptive text. The canonical slur form is left
-  // detectable; only the colliding alias spelling is excused.
-  'mongo',     // MongoDB shorthand (alias of `mongoloid`)
-  'coke',      // Coca-Cola / soft drink (alias of `cocaine`)
-  'heron',     // bird species (alias of `heroin`)
-  'nike',      // Nike brand (alias of French `niquer`)
-  'dike',      // civil-engineering / geological term for an embankment or rock intrusion (alias of `dyke`)
-  'pouf',      // upholstered footstool / furniture term (alias of `poofter`)
-  'rand',      // C `rand()` / South African Rand currency / Ayn Rand / RAND Corp (alias of Hindi `randi`)
-  'rands',     // plural — Rand currency, RAND staff
-  'wang',      // Wang — extremely common Chinese surname (~95M people); also Wang Computer, Vera Wang, Wang Wei. The mild slang sense (severity:low) is dwarfed by surname use.
-  'wangs',     // plural / possessive form of the surname
+const ES_SAFE_WORDS: readonly string[] = [
   // ── Spanish collisions (accent-stripped forms that collide with dictionary) ──
   // "coño" normalizes to "cono" which is also Spanish for "cone"
   'cono', 'conos',
@@ -474,7 +511,9 @@ const SAFE_WORDS = new Set([
   // "pico" (beak) fuzzy-close to "pito"
   'pico', 'picos',
   // "ano" / "año" — not in dict, no action
+];
 
+const FR_SAFE_WORDS: readonly string[] = [
   // ── French collisions ──
   // `con` is a common French root; `allowPartialMatch: false` handles exact
   // lookup, but fuzzy matching can still trip on one-edit neighbours. These
@@ -496,13 +535,9 @@ const SAFE_WORDS = new Set([
   'orbite', 'orbital', 'orbiter',
   'cohabite', 'cohabiter', 'cohabitation',
   'exhibe', 'exhibé', 'exhiber', 'exhibition',
-  // Cross-language: the everyday English words `bite`/`bites` ("a snake
-  // bite", "the dog bites") are identical to the French entry `bite` and
-  // its plural in `normalized` (fr.ts), so they exact-match the French
-  // entry whenever all languages are loaded. Excuse the English spellings;
-  // the French canonical word `bite` is therefore NOT detected (accepted
-  // trade-off), but its alias forms (`bitte`, `bittes`, `b1te`) still are.
-  'bite', 'bites',
+  // NOTE: the English `bite`/`bites` and `con`/`cons` collisions with the
+  // French entries live in EN_SAFE_WORDS, not here — keying them `en` is what
+  // lets `languages: ['fr']` still detect the French words.
   // `cul` is partial-off so no substring issue, but fuzzy near-miss collisions:
   'culte', 'culto', 'culture', 'cultiver', 'cultivé', 'culturel',
   'calcul', 'calculer', 'circuler', 'circulation',
@@ -516,7 +551,9 @@ const SAFE_WORDS = new Set([
   'boite', 'boîte', 'bête', 'bete', 'bêtise', 'betise',
   // `folle` is intentionally NOT in the dict as a word; "grande folle" is a phrase
   'folle', 'folles',  // extra safety against fuzzy collisions with other entries
+];
 
+const DE_SAFE_WORDS: readonly string[] = [
   // ── German collisions ──
   // `arsch` has no major benign compounds; safelist the fuzzy near-misses
   'marsch', 'marschieren', 'forscher', 'forschung',
@@ -543,7 +580,36 @@ const SAFE_WORDS = new Set([
   'mixe', 'mixen', 'fixe', 'fixen',
   // `nackt` is NOT in the dict (excluded for FP reasons), but include for safety
   'nackt', 'nackte', 'nackten',
+];
+
+/**
+ * Safelist buckets by language code. `*` is always active; every other bucket
+ * is active only when that language's dictionary is loaded. Adding a language
+ * means adding a key — no call-site changes.
+ */
+const SAFE_WORDS_BY_LANGUAGE: ReadonlyMap<string, readonly string[]> = new Map([
+  ['*', NEUTRAL_SAFE_WORDS],
+  ['en', EN_SAFE_WORDS],
+  ['es', ES_SAFE_WORDS],
+  ['fr', FR_SAFE_WORDS],
+  ['de', DE_SAFE_WORDS],
 ]);
+
+/**
+ * Collapse the per-language buckets into the flat set used at match time.
+ * Called once per index build (which is itself cached per language set), so
+ * matching stays a single O(1) Set lookup per token.
+ */
+export function resolveSafeWords(languages: Iterable<string>): Set<string> {
+  const resolved = new Set<string>(NEUTRAL_SAFE_WORDS);
+  for (const language of languages) {
+    const bucket = SAFE_WORDS_BY_LANGUAGE.get(language);
+    if (bucket) {
+      for (const word of bucket) resolved.add(word);
+    }
+  }
+  return resolved;
+}
 
 const SEVERITY_ORDER: Record<Severity, number> = {
   low: 0,
@@ -586,6 +652,13 @@ interface DictionaryIndex {
   partialAutomaton: AhoCorasick<DictionaryEntry>;
   /** Whether any partial-match patterns exist (skip scan if empty). */
   hasPartialPatterns: boolean;
+  /**
+   * Internal safelist resolved for exactly the languages in this index —
+   * the `*` bucket plus one bucket per loaded language. Precomputed here
+   * rather than per token because the index is already cached per language
+   * set (see `getIndexFor` in index.ts).
+   */
+  safeWords: Set<string>;
 }
 
 /**
@@ -597,8 +670,13 @@ export function buildIndex(entries: DictionaryEntry[], phrases: PhraseEntry[] = 
   const allWords: string[] = [];
   const partialAutomaton = new AhoCorasick<DictionaryEntry>();
   const seenPartialKeys = new Set<string>();
+  // Languages are derived from the entries rather than taken as a parameter so
+  // that per-call language overrides and custom dictionaries resolve the same
+  // way, with no second source of truth to keep in sync.
+  const languages = new Set<string>();
 
   for (const entry of entries) {
+    languages.add(entry.language);
     const canonical = entry.word.toLowerCase();
     wordMap.set(canonical, entry);
     allWords.push(canonical);
@@ -664,6 +742,7 @@ export function buildIndex(entries: DictionaryEntry[], phrases: PhraseEntry[] = 
     allWords,
     partialAutomaton,
     hasPartialPatterns: seenPartialKeys.size > 0,
+    safeWords: resolveSafeWords(languages),
   };
 }
 
@@ -826,8 +905,8 @@ function matchRawSegment(
   segment = stripped;
   const raw = segment.value;
 
-  // Check internal safelist
-  if (SAFE_WORDS.has(raw.toLowerCase())) return null;
+  // Check internal safelist (resolved for this index's languages)
+  if (index.safeWords.has(raw.toLowerCase())) return null;
 
   // English contraction: match against the prefix only. Position narrows to
   // the prefix span so a result like `bitch's` flags `bitch` over [0,5]
@@ -947,9 +1026,9 @@ function matchToken(
 ): DetectionResult | null {
   const raw = token.value.toLowerCase();
 
-  // Check whitelist and internal safelist
+  // Check whitelist and internal safelist (resolved for this index's languages)
   if (config.whitelist.has(raw)) return null;
-  if (SAFE_WORDS.has(raw)) return null;
+  if (index.safeWords.has(raw)) return null;
 
   // Tier 1: Exact match
   const exactEntry = index.wordMap.get(raw);

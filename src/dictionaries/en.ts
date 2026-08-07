@@ -1881,16 +1881,12 @@ export const EN_WORDS: DictionaryEntry[] = [
     aliases: ["eradicated", "eradication", "eradicating"],
   },
 
-  // --- Slur corpus additions ---
-  {
-    word: "haji",
-    normalized: ["h4ji", "haj1"],
-    language: "en",
-    severity: "high",
-    category: "slur",
-    allowPartialMatch: false,
-    aliases: ["hadji", "hajji", "hajis"],
-  },
+  // NOTE: "haji" / "hadji" / "hajis" were previously listed here as a slur.
+  // Removed: the dominant sense is the honorific for someone who has performed
+  // Hajj, and it is a very common given name and form of address. The engine
+  // matches single tokens with no surrounding context, so it cannot separate
+  // that sense from the pejorative one — and the honorific sense is far more
+  // frequent. The whole family is now safelisted in engine/matcher.ts.
 
   // ╔══════════════════════════════════════════════╗
   // ║  ABSORBED FROM GOOGLE PROFANITY WORDS LIST    ║
