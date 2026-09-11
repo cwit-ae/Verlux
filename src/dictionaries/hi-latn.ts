@@ -15,7 +15,11 @@ export const HI_LATN_WORDS: DictionaryEntry[] = [
     severity: 'high',
     category: 'sexual',
     allowPartialMatch: false,
-    aliases: ['bc', 'b.c', 'b.c.', 'b-c', 'bhnchd', 'benchd', 'bhenchd', 'banchd', 'behnchod', 'bhenc*od'],
+    // `bahanchod` and its spellings are what the Devanagari बहनचोद romanizes
+    // to (बहन = sister), and are common in Roman-script use in their own
+    // right. None collide with a word in any shipped language.
+    aliases: ['bc', 'b.c', 'b.c.', 'b-c', 'bhnchd', 'benchd', 'bhenchd', 'banchd', 'behnchod', 'bhenc*od',
+      'bahanchod', 'behanchod', 'behenchod', 'bahenchod'],
   },
   {
     word: 'madarchod',
@@ -60,7 +64,14 @@ export const HI_LATN_WORDS: DictionaryEntry[] = [
     severity: 'high',
     category: 'sexual',
     allowPartialMatch: false,
-    aliases: ['lnd', 'l*nd', 'lauda', 'lawda', 'lawd', 'loda'],
+    // लंड is listed natively because it is the one entry whose correct
+    // romanization is unusable as a dictionary key: it reads `land`, and
+    // adding that as a Roman key would flag the English word. Devanagari
+    // strings cannot collide with any shipped language, so matching at Tier 1
+    // is exact and risk-free. लौड़ा is reachable through the transliterator
+    // (the ड़ flap also reads `d`, giving `laudaa` → `lauda`) and is listed
+    // here as cover in case that reading is ever narrowed.
+    aliases: ['lnd', 'l*nd', 'lauda', 'lawda', 'lawd', 'loda', 'लंड', 'लौड़ा'],
   },
   {
     word: 'randi',
