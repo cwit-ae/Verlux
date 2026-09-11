@@ -13,7 +13,12 @@ import type {
 import { normalize, normalizeVariants, unicodeFold } from './normalizer.js';
 import { tokenize, phraseWindows, Token } from './tokenizer.js';
 import { bestFuzzyMatch } from './fuzzy.js';
-import { transliterate } from './transliterator.js';
+import {
+  transliterate,
+  hasDevanagari,
+  devanagariToLatinVariants,
+  foldTokenForPhrase,
+} from './transliterator.js';
 import { AhoCorasick } from './aho-corasick.js';
 
 /**
@@ -583,6 +588,47 @@ const DE_SAFE_WORDS: readonly string[] = [
 ];
 
 /**
+ * Everyday romanized Hindi/Urdu words that the phonetic folds collapse onto a
+ * profanity root. Keyed to `hi-latn` per the rule above — each is a legitimate
+ * HINDI word, so the bucket is active exactly when the caller has said the
+ * text may contain Hindi. Scoping to `languages: ['en']` drops it, which is
+ * the correct trade: in English-only text `phool` really is a `ph→f`
+ * obfuscation of `fool`, the same way `phuck` is of `fuck`.
+ *
+ * `TRANSLITERATION_LANGUAGE` already stops a Hinglish fold from reaching
+ * another language's dictionary. These are the residue it cannot fix —
+ * collisions *within* hi-latn, plus one (`phool`) produced by the l33t
+ * normalizer rather than the transliterator.
+ *
+ * Surfaced by `scripts/audit-hinglish-fp.mjs`. Only the exact colliding
+ * surface forms are listed: compounds already come out clean
+ * (`vidyashaala`, `dharamshala`, `sugandh`, `gandhak`, `phoolon`, `lodhi`)
+ * and must not be blanket-safelisted, or a real match hiding inside a longer
+ * token would be exempted too.
+ */
+const HI_LATN_SAFE_WORDS: readonly string[] = [
+  // `shaala` (शाला — school, as in paathshaala/vidyashaala) folds sh→s, aa→a
+  // onto `sala`, the `normalized` form of the insult `saala`.
+  'shaala', 'shala', 'shaalaa', 'shalaa',
+  // `chhoot` (छूट — a discount; छूत — contagion) folds chh→ch, oo→u onto the
+  // HIGH-severity `chut`. "50% chhoot" is ordinary commercial copy.
+  // NOTE: the `chhut` spelling is deliberately NOT safelisted — it is a
+  // listed `normalized` form of `chut` in hi-latn.ts, i.e. a real obfuscation.
+  'chhoot', 'achhoot',
+  // `gandh` (गंध — smell/fragrance) folds dh→d onto `gand`, a `normalized`
+  // form of the HIGH-severity `gaand`.
+  'gandh',
+  // `lodha` — common Indian surname and a major property developer. Folds
+  // dh→d onto `loda`, a listed alias of `lund` (HIGH). The genuine slang is
+  // spelled `loda`/`lauda`/`lawda`, all of which stay detectable.
+  'lodha',
+  // `phool` (फूल — flower). The l33t normalizer's `ph→f` sequence rewrites
+  // this to English `fool` at Tier 2, so it is not reachable by the
+  // transliteration gate.
+  'phool', 'phools',
+];
+
+/**
  * Safelist buckets by language code. `*` is always active; every other bucket
  * is active only when that language's dictionary is loaded. Adding a language
  * means adding a key — no call-site changes.
@@ -593,6 +639,7 @@ const SAFE_WORDS_BY_LANGUAGE: ReadonlyMap<string, readonly string[]> = new Map([
   ['es', ES_SAFE_WORDS],
   ['fr', FR_SAFE_WORDS],
   ['de', DE_SAFE_WORDS],
+  ['hi-latn', HI_LATN_SAFE_WORDS],
 ]);
 
 /**
@@ -631,6 +678,96 @@ const SEVERITY_ORDER: Record<Severity, number> = {
  */
 const MIN_VARIANT_KEY_LENGTH = 3;
 
+/**
+ * The only language whose dictionary a transliterated variant may match.
+ *
+ * `transliterate()` exists for one job: catch Hindi/Urdu abuse written in
+ * Roman script, where there is no standard spelling. It gets there with an
+ * aggressive phonetic fold — `kh→k`, `bh→b`, `dh→d`, `sh→s`, `th→t`, `ph→f`,
+ * `ai→e`, `oo→u`, `ee→i` — applied cumulatively. That is the right trade for
+ * `bhenchod`, which users spell a dozen ways, but the output is a heavily
+ * lossy skeleton, and feeding it to the *unified* index (every loaded
+ * language at once) meant any word sharing that skeleton with any entry in
+ * any language produced a hit.
+ *
+ * The result was a steady stream of high-severity false positives on
+ * everyday, entirely non-Hindi words:
+ *
+ *   pushy  → (sh→s)          → `pusy`  → English `pussy`   HIGH
+ *   nigh   → (gh→g)          → `nig`   → English `nigger`  HIGH
+ *   dikhai → (kh→k, ai→e)    → `dike`  → English `dyke`    HIGH
+ *   theta  → (th→t)          → `teta`  → Spanish `tetas`
+ *   jeez   → (ee→i)          → `jiz`   → English `jizz`
+ *   cools  → (oo→u)          → `culs`  → French  `cul`
+ *
+ * Scoping the tier to hi-latn closes the class at the source rather than
+ * safelisting each casualty. It costs nothing: every other language's
+ * surface forms are already reachable through Tier 1 (exact) and Tier 2
+ * (`normalizeVariants`) — asserted differentially in
+ * `tests/transliteration-scope.test.ts` ("adds no coverage of its own over
+ * any dictionary surface form") and audited by
+ * `scripts/audit-hinglish-fp.mjs`.
+ */
+const TRANSLITERATION_LANGUAGE = 'hi-latn';
+
+/**
+ * The `phrasesByTransliterated` key contribution of a single word: romanized,
+ * then phonetically folded.
+ *
+ * Per WORD rather than per phrase so that the match side can fold each token
+ * once and reuse it across every overlapping n-gram window it appears in —
+ * re-folding per window made the phrase tier by far the most expensive stage
+ * in `detect()`. Sound because `normalize` strips the spaces anyway, so no
+ * fold ever spanned a word boundary.
+ *
+ * Deliberately does NOT run `normalize`. This tier exists for spelling
+ * variance in Hinglish, not obfuscation: l33t and separator tricks are
+ * already handled by `phrasesByNormalized`, which is consulted first on the
+ * same window. Running it here too doubled the per-token cost of every
+ * `detect()` call to buy only the l33t-inside-a-nonstandard-romanization
+ * combination.
+ */
+function foldPhraseWord(word: string): string {
+  return foldTokenForPhrase(word);
+}
+
+/** Join per-word keys. Both sides build the key this way. */
+function joinPhraseKey(parts: string[]): string {
+  return parts.join('');
+}
+
+/**
+ * Whether a Devanagari token is exempted by way of its romanization.
+ *
+ * Both safelists — the internal one and the caller's `whitelist` — are keyed
+ * by surface form, so they only ever saw Latin spellings. A Devanagari token
+ * reaches the dictionary through `devanagariToLatin`, which means the word
+ * that gets matched is the romanization while the word that gets checked
+ * against the safelist is the original script — and the check silently missed
+ * every time. गंध ("smell") romanizes to `gandh`, which IS safelisted, yet the
+ * token was still reported as the high-severity `gaand`. Same for शाला
+ * ("school") → `shaala` and छूट ("discount") → `chhoot`.
+ *
+ * Only the faithful romanizations are consulted, never the Hinglish folds:
+ * the folds are lossy, so allowing a folded skeleton to match the safelist
+ * would let one benign word exempt every profanity that collapses onto it.
+ *
+ * Callers get the same fix for free — `whitelist: ['chhoot']` now covers छूट.
+ */
+function isRomanizationExempt(
+  raw: string,
+  index: DictionaryIndex,
+  config: ResolvedConfig
+): boolean {
+  if (!hasDevanagari(raw)) return false;
+  for (const romanized of devanagariToLatinVariants(raw)) {
+    if (config.whitelist.has(romanized) || index.safeWords.has(romanized)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 interface DictionaryIndex {
   /** word/normalized/alias → entry (fast O(1) lookup) */
   wordMap: Map<string, DictionaryEntry>;
@@ -645,6 +782,25 @@ interface DictionaryIndex {
    * every phrase entry for every window.
    */
   phrasesByNormalized: Map<string, PhraseEntry[]>;
+  /**
+   * `TRANSLITERATION_LANGUAGE` phrase entries keyed by every romanized and
+   * phonetically-folded form of the phrase, so that a Hinglish phrase matches
+   * whichever way the writer spelled it — and matches at all when written in
+   * Devanagari. Both sides have to be folded: the input fold alone gets
+   * `teri maa kee` to `terimaki` while the stored key is still `terimaaki`.
+   *
+   * Restricted to that one language for the same reason the word-level tier
+   * is (see TRANSLITERATION_LANGUAGE) — the folds are lossy, and a folded
+   * English phrase key would be a false-positive generator.
+   */
+  phrasesByTransliterated: Map<string, PhraseEntry[]>;
+  /**
+   * Token counts of the entries in `phrasesByTransliterated`. An n-gram window
+   * of any other width cannot match one, and skipping those before folding
+   * anything is what keeps the phrase tier off the hot path: without it,
+   * folding every window cost more than the rest of detection combined.
+   */
+  phraseTokenCounts: Set<number>;
   /** All canonical words (for fuzzy matching) */
   allWords: string[];
   /** Aho-Corasick automaton over allowPartialMatch words (all languages) —
@@ -724,6 +880,8 @@ export function buildIndex(entries: DictionaryEntry[], phrases: PhraseEntry[] = 
   // Pre-normalize phrase entries once at index build time so per-detect calls
   // do an O(1) Map lookup per window instead of scanning every phrase entry.
   const phrasesByNormalized = new Map<string, PhraseEntry[]>();
+  const phrasesByTransliterated = new Map<string, PhraseEntry[]>();
+  const phraseTokenCounts = new Set<number>();
   for (const phraseEntry of phrases) {
     const key = normalize(phraseEntry.phrase);
     let bucket = phrasesByNormalized.get(key);
@@ -732,6 +890,21 @@ export function buildIndex(entries: DictionaryEntry[], phrases: PhraseEntry[] = 
       phrasesByNormalized.set(key, bucket);
     }
     bucket.push(phraseEntry);
+
+    // Fold the stored side too, so a phrase matches whichever romanization
+    // the writer used. Only for the transliteration language — see the field
+    // docs on `phrasesByTransliterated`.
+    if (phraseEntry.language !== TRANSLITERATION_LANGUAGE) continue;
+    const words = phraseEntry.phrase.trim().split(/\s+/);
+    const foldedKey = joinPhraseKey(words.map(foldPhraseWord));
+    if (!foldedKey) continue;
+    phraseTokenCounts.add(words.length);
+    let foldedBucket = phrasesByTransliterated.get(foldedKey);
+    if (!foldedBucket) {
+      foldedBucket = [];
+      phrasesByTransliterated.set(foldedKey, foldedBucket);
+    }
+    if (!foldedBucket.includes(phraseEntry)) foldedBucket.push(phraseEntry);
   }
 
   return {
@@ -739,6 +912,8 @@ export function buildIndex(entries: DictionaryEntry[], phrases: PhraseEntry[] = 
     fuzzyIndex,
     phrases,
     phrasesByNormalized,
+    phrasesByTransliterated,
+    phraseTokenCounts,
     allWords,
     partialAutomaton,
     hasPartialPatterns: seenPartialKeys.size > 0,
@@ -943,6 +1118,10 @@ function matchRawSegment(
     }
   }
 
+  // Devanagari safelist via romanization — after the exact lookup, for the
+  // same reason as in `matchToken`.
+  if (isRomanizationExempt(rawLower, index, config)) return null;
+
   // Normalize the full raw segment (this handles @$$hole → asshole, f.u.c.k → fuck)
   const variants = normalizeVariants(raw);
 
@@ -1036,6 +1215,12 @@ function matchToken(
     return buildResult(token, exactEntry, 'exact', 1.0);
   }
 
+  // Devanagari safelist, checked via romanization. Deliberately placed AFTER
+  // Tier 1 so a dictionary entry listed in native script (see the Devanagari
+  // aliases on `lund` in hi-latn.ts) still wins over a romanization that
+  // happens to be safelisted.
+  if (isRomanizationExempt(raw, index, config)) return null;
+
   // Tier 2: Normalized match
   const variants = normalizeVariants(token.value);
   for (const variant of variants) {
@@ -1047,14 +1232,21 @@ function matchToken(
     }
   }
 
-  // Tier 2.5: Transliteration match
+  // Tier 2.5: Transliteration match — restricted to TRANSLITERATION_LANGUAGE.
+  // See the constant's docs: the Hinglish folds are lossy enough that letting
+  // their output match any language's dictionary turns everyday words into
+  // high-severity hits (`pushy` → `pussy`, `nigh` → `nigger`).
   if (config.transliteration) {
     const translit = transliterate(token.value);
     for (const t of translit) {
       const tNorm = normalize(t);
       if (tNorm.length < MIN_VARIANT_KEY_LENGTH && tNorm !== raw) continue;
       const tEntry = index.wordMap.get(tNorm);
-      if (tEntry && passesFilters(tEntry, config)) {
+      if (
+        tEntry &&
+        tEntry.language === TRANSLITERATION_LANGUAGE &&
+        passesFilters(tEntry, config)
+      ) {
         return buildResult(token, tEntry, 'normalized', 0.9);
       }
     }
@@ -1115,12 +1307,60 @@ function matchPhrases(
 
   const windows = phraseWindows(tokens, 5);
 
+  // Each token's folded key contribution, computed at most once and shared by
+  // every window it belongs to. Filled lazily: in text with no Hinglish
+  // phrase-width window at all, nothing is folded.
+  const foldedTokens = new Map<Token, string>();
+  const foldedToken = (token: Token): string => {
+    let folded = foldedTokens.get(token);
+    if (folded === undefined) {
+      folded = foldPhraseWord(token.value);
+      foldedTokens.set(token, folded);
+    }
+    return folded;
+  };
+
   for (const window of windows) {
     const normalizedPhrase = normalize(window.phrase);
-    const matches = index.phrasesByNormalized.get(normalizedPhrase);
+
+    // Caller whitelist. The phrase tier used to skip this entirely, so
+    // `whitelist: ['shut up']` could not suppress a phrase entry even though
+    // the README presents the whitelist as the integration-time escape hatch
+    // for exactly this. Both the surface form and its normalized key are
+    // accepted, so the caller does not have to know how phrases are keyed.
+    if (config.whitelist.has(window.phrase.toLowerCase())) continue;
+    if (config.whitelist.has(normalizedPhrase)) continue;
+
+    let matches = index.phrasesByNormalized.get(normalizedPhrase);
+    let viaTransliteration = false;
+
+    // Hinglish phrases are spelled as many ways as Hinglish words, and in
+    // Devanagari they share no surface form with the stored key at all.
+    // Fall back to the folded phrase index, which is keyed on the same folds.
+    // Gated on the window width first: folding is the expensive step, and a
+    // window no stored phrase could match is not worth folding.
+    if (
+      !matches &&
+      config.transliteration &&
+      index.phraseTokenCounts.has(window.tokens.length)
+    ) {
+      const candidate = index.phrasesByTransliterated.get(
+        joinPhraseKey(window.tokens.map(foldedToken))
+      );
+      if (candidate) {
+        matches = candidate;
+        viaTransliteration = true;
+      }
+    }
+
     if (!matches) continue;
 
     for (const phraseEntry of matches) {
+      // A folded match is only ever valid for the language whose folds
+      // produced it; `phrasesByTransliterated` holds nothing else, but the
+      // guard keeps that invariant local to the read as well as the write.
+      if (viaTransliteration && phraseEntry.language !== TRANSLITERATION_LANGUAGE) continue;
+
       // Language filter
       if (config.languages && !config.languages.includes(phraseEntry.language)) continue;
 
@@ -1135,7 +1375,9 @@ function matchPhrases(
         category: phraseEntry.category,
         position: [window.start, window.end],
         matchType: 'phrase',
-        confidence: 1.0,
+        // A folded match reached the entry through a lossy rewrite, so it
+        // carries the same 0.9 the word-level transliteration tier reports.
+        confidence: viaTransliteration ? 0.9 : 1.0,
       });
     }
   }
