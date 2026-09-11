@@ -89,10 +89,11 @@ Beyond multilingual coverage, dictionary-based profanity filters typically fail 
 | Invisible / zero-width Unicode (zero-width space, joiners, BOM, soft hyphen, etc.) | Single-pass strip across a curated invisible-character range covering the common abuse vectors |
 | Combining-mark overlays (base letter plus strikethrough or overlay codepoint, e.g. `f̸u̸c̸k̸`) | Orphan combining marks are dropped before tokenization so the base letters fuse into a single token, while Devanagari, Arabic, and Hebrew combining marks (which carry meaning) are preserved |
 | The _Scunthorpe_ problem (substring false positives)                        | Per-entry `allowPartialMatch` flag combined with an internal safelist of innocent terms; reduces substring false positives but does not eliminate them in every case |
-| Hindi and Urdu written in Latin script (Hinglish)                           | Devanagari-to-Latin transliteration and phonetic variant generation                     |
+| Hindi and Urdu written in Latin script (Hinglish)                           | Phonetic variant generation across the spellings the same word is romanised with (`kh`/`k`, `bh`/`b`, `aa`/`a`, `ee`/`i`, `oo`/`u`) |
+| Hindi written in native Devanagari (`भेनचोद`, `चूत`)                        | Script conversion with Hindi schwa deletion, both readings of the retroflex flaps `ड़`/`ढ़`, and both Unicode encodings of the nuqta letters; the romanised output is then folded through the Hinglish variants above. Urdu in Arabic script is **not** covered |
 | English contractions and Romance-language elisions                          | Apostrophe-aware tokenizer that splits forms such as `he'll`, `won't`, and `bitch's` so that the meaningful word — not its apostrophe-stripped fold — is matched against the dictionary |
 | Spanish diacritics (accented and accent-stripped forms of the same term)    | Accent-stripping normalizer paired with dual-form dictionary entries                    |
-| Multi-word phrase detection                                                 | N-gram windowing that captures common multi-word abusive expressions                    |
+| Multi-word phrase detection                                                 | N-gram windowing that captures common multi-word abusive expressions, backed by a second phrase index keyed on the Hinglish folds so a phrase matches whichever romanisation the writer used, and matches when written in Devanagari |
 | Mixed-language input                                                        | Automatic detection across every loaded dictionary, with no language hint required      |
 | Business-safe vocabulary                                                    | Includes safelists and phrase rules for common benign business expressions; uncovered idioms can be added at integration time via `whitelist` |
 
@@ -270,7 +271,7 @@ interface VerluxConfig {
   phraseDetection?: boolean; // Enable phrase detection (default: true)
   transliteration?: boolean; // Enable transliteration (default: true)
   minSeverity?: Severity; // Minimum severity to report (default: 'low')
-  whitelist?: string[]; // Words to never flag (case-insensitive)
+  whitelist?: string[]; // Words or phrases to never flag (case-insensitive)
 }
 ```
 
@@ -282,6 +283,10 @@ verlux.detect("<sentence containing a proper noun>", {
 });
 // [] — no results
 ```
+
+A whitelist entry may be a multi-word phrase, which exempts the corresponding phrase-dictionary entry. Entries are matched against the input's surface form and its normalised key, so an idiom can be written the way it reads. Note that whitelisting the individual *words* of a phrase does not exempt the phrase — list the phrase itself.
+
+A whitelisted Latin spelling also covers the same word written in Devanagari: the exemption is checked against the token's romanisation as well as its surface form, so `whitelist: ["chhoot"]` suppresses `छूट`.
 
 ---
 
@@ -315,7 +320,8 @@ Input Text
     |                    ñ becomes n), repetition collapse, and separator removal
     |  miss
     v
-[4] Transliteration   ── maps Devanagari script into Latin and generates Hinglish spelling variants
+[4] Transliteration   ── romanises Devanagari (with schwa deletion) and generates Hinglish
+    |                    spelling variants; scoped to the Hinglish dictionary only
     |  miss
     v
 [5] Partial Match     ── Aho–Corasick scan in O(n + z), where n is input length and z is match count
@@ -387,7 +393,19 @@ In addition to the end-to-end benchmark above, our dataset is regression-tested 
 | Acronyms whose repeated-letter collapse lands on a 2-char abbreviation alias | 18       | 0               |
 | **Total**                                                                | **581**      | **0**           |
 
-> **Scope.** This corpus measures resistance to _substring-overlap_ false positives only — that is, inputs that incidentally contain profane characters within an unrelated word. It does **not** measure resistance to _exact-word_ collisions, where a dictionary entry appears verbatim inside an idiomatic, technical, or otherwise benign sentence (for example, the verb _"murder"_ inside the business idiom _"let us murder the competition"_, which is the single false positive recorded in the coverage benchmark above). Such exact-word collisions are an inherent property of any dictionary that takes incitement vocabulary seriously and are intended to be neutralised at integration time via the per-instance [`whitelist`](#configuration) configuration option. The one bounded exception, covered by the cross-language row above, is a single benign token that collides with a _different language's_ dictionary entry or with a profanity root only after the normalization/transliteration folds (for example the everyday English word _"cook"_ collapsing onto an alias of a high-severity term); these are neutralised in the shipped safelist rather than left to integration-time configuration. Two-character abbreviation aliases (common shorthand for high-severity terms in several languages) are additionally gated structurally: they match only when the input surface form is the alias itself or an explicitly listed punctuated variant, so arbitrary acronyms — including ones not present in any safelist — can never reach them through the repetition-collapse, l33t-decode, or transliteration folds.
+> **Scope.** This corpus measures resistance to _substring-overlap_ false positives only — that is, inputs that incidentally contain profane characters within an unrelated word. It does **not** measure resistance to _exact-word_ collisions, where a dictionary entry appears verbatim inside an idiomatic, technical, or otherwise benign sentence (for example, the verb _"murder"_ inside the business idiom _"let us murder the competition"_, which is the single false positive recorded in the coverage benchmark above). Such exact-word collisions are an inherent property of any dictionary that takes incitement vocabulary seriously and are intended to be neutralised at integration time via the per-instance [`whitelist`](#configuration) configuration option. The one bounded exception, covered by the cross-language row above, is a single benign token that collides with a _different language's_ dictionary entry or with a profanity root only after the normalization/transliteration folds (for example the everyday English word _"cook"_ collapsing onto an alias of a high-severity term); these are neutralised in the shipped safelist rather than left to integration-time configuration. The *transliteration* half of that class is additionally closed structurally rather than by safelist: the Hinglish phonetic folds are lossy by design, so their output is matched against the Hinglish dictionary alone and can no longer reach an English, Spanish, French, or German entry — an everyday word such as _"pushy"_ or _"theta"_ therefore cannot collapse onto a foreign root at all, whether or not anyone thought to safelist it. Two-character abbreviation aliases (common shorthand for high-severity terms in several languages) are additionally gated structurally: they match only when the input surface form is the alias itself or an explicitly listed punctuated variant, so arbitrary acronyms — including ones not present in any safelist — can never reach them through the repetition-collapse, l33t-decode, or transliteration folds.
+
+### Hindi Corpora
+
+The substring corpus above is drawn from English wordlists and is structurally unable to surface a false positive that only an Indic input produces — an everyday Hinglish word that the phonetic folds collapse onto a profanity root. Two dedicated corpora cover that, both runnable after `npm run build`:
+
+| Corpus | Script | Size | Result |
+| ------ | ------ | ---- | ------ |
+| [`scripts/audit-hinglish-fp.mjs`](./scripts/audit-hinglish-fp.mjs) | Romanised Hindi/Urdu | 476 benign words | 0 false positives |
+| [`scripts/audit-devanagari.mjs`](./scripts/audit-devanagari.mjs) | Native Devanagari | 200 benign inputs | 0 false positives |
+| [`scripts/audit-devanagari.mjs`](./scripts/audit-devanagari.mjs) | Native Devanagari | every Hinglish entry, spelled natively | 100% detected |
+
+The Hinglish corpus is weighted toward the digraphs the folds actually rewrite (`kh`, `gh`, `bh`, `dh`, `th`, `sh`, `ph`, `ch`) and the vowel clusters they collapse (`aa`, `ee`, `oo`, `ai`, `au`), and includes Indian proper nouns and surnames that brush the same rules. It also carries a cross-language control set of ordinary English words that the folds rewrite onto foreign roots; these stay clean only because the transliteration tier is scoped to the Hinglish dictionary, so widening that scope lights them up first. The corresponding regression suites are [`tests/transliteration-scope.test.ts`](./tests/transliteration-scope.test.ts) and [`tests/devanagari.test.ts`](./tests/devanagari.test.ts), both of which run under `npm test`.
 
 ### Unicode Obfuscation Resistance
 
@@ -428,9 +446,9 @@ Measured on commodity developer hardware with the full multi-language index load
 
 ## Dictionary Coverage
 
-**Total:** 5 languages — 746 words and 127 phrases across English, Hinglish, Spanish, French, and German. The tables below describe the dictionary at the category level only. Specific vocabulary is deliberately omitted from this document; the authoritative wordlists reside under [`src/dictionaries/`](./src/dictionaries).
+**Total:** 5 languages — 741 words and 127 phrases across English, Hinglish, Spanish, French, and German. The tables below describe the dictionary at the category level only. Specific vocabulary is deliberately omitted from this document; the authoritative wordlists reside under [`src/dictionaries/`](./src/dictionaries).
 
-### English — 519 words, 75 phrases
+### English — 518 words, 75 phrases
 
 | Category                         | Entries | Scope                                                                                                         |
 | -------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------- |
@@ -453,6 +471,8 @@ Measured on commodity developer hardware with the full multi-language index load
 ### Hinglish (Hindi–Latin script) — 32 words, 13 phrases
 
 Covers the most frequently used Hindi and Urdu invective written in Roman script, with extensive coverage of spelling variants. The category includes familial insults, pejoratives directed at women, generic invective, and anatomical crudities, each entered together with its common romanisation alternatives. Specific vocabulary is not reproduced here.
+
+The same entries are reachable from **native Devanagari** input: the transliteration tier romanises the token — applying Hindi schwa deletion, so `चूत` reads `choot` rather than `choota` — and then folds the result through the Hinglish spelling variants. Every entry in this pack is verified detectable in native script by [`scripts/audit-devanagari.mjs`](./scripts/audit-devanagari.mjs). A single entry is additionally listed in Devanagari in the dictionary itself, because its correct romanisation collides with an everyday English word and is therefore unusable as a Latin key. Urdu written in Arabic script is not covered — that script omits short vowels, which puts faithful romanisation beyond a character table.
 
 ### Spanish — 80 words, 17 phrases
 
