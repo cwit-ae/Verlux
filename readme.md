@@ -405,6 +405,20 @@ The substring corpus above is drawn from English wordlists and is structurally u
 | [`scripts/audit-devanagari.mjs`](./scripts/audit-devanagari.mjs) | Native Devanagari | 200 benign inputs | 0 false positives |
 | [`scripts/audit-devanagari.mjs`](./scripts/audit-devanagari.mjs) | Native Devanagari | every Hinglish entry, spelled natively | 100% detected |
 
+### Alphanumeric-Code Corpus
+
+The l33t decoder reads digits as letters, so a code can decode onto a profanity root: the postcode `6DU` reads `gdu`, `N16` reads `nig`, and _"900k views"_ reads `gook`. Tokens that read as codes keep their digits literal (see `looksLikeCode` in [`normalizer.ts`](./src/engine/normalizer.ts)). [`scripts/audit-alnum-codes-fp.mjs`](./scripts/audit-alnum-codes-fp.mjs) generates about 1.4 million realistic codes and 1.3 million username-style tokens, runnable after `npm run build`:
+
+| Corpus | Size | Result |
+| ------ | ---- | ------ |
+| UK postcodes (every outward and inward code, full codes spaced and unspaced) | 216k | 0 false positives |
+| Canadian postal codes (every FSA and LDU, full codes spaced and unspaced) | 204k | 0 false positives |
+| Irish Eircodes, flight numbers (3–4 digits), quantities and ordinals, versions and models, hex SHAs and UUIDs | 600k | 0 false positives |
+| English words with number suffixes and prefixes (usernames) | 1.27M | 0 false positives, beyond single-edge-digit l33t shapes |
+| Random references, unspaced Eircodes, 1–2 digit flight numbers | 368k | under 1 in 10,000 (random strings that literally spell l33t, e.g. `W08ISP0RN`) |
+
+The regression suite is [`tests/alphanumeric-codes.test.ts`](./tests/alphanumeric-codes.test.ts). The cost is l33t spellings that share a code's shape — see [Limitations](#limitations).
+
 The Hinglish corpus is weighted toward the digraphs the folds actually rewrite (`kh`, `gh`, `bh`, `dh`, `th`, `sh`, `ph`, `ch`) and the vowel clusters they collapse (`aa`, `ee`, `oo`, `ai`, `au`), and includes Indian proper nouns and surnames that brush the same rules. It also carries a cross-language control set of ordinary English words that the folds rewrite onto foreign roots; these stay clean only because the transliteration tier is scoped to the Hinglish dictionary, so widening that scope lights them up first. The corresponding regression suites are [`tests/transliteration-scope.test.ts`](./tests/transliteration-scope.test.ts) and [`tests/devanagari.test.ts`](./tests/devanagari.test.ts), both of which run under `npm test`.
 
 ### Unicode Obfuscation Resistance
@@ -615,6 +629,7 @@ Verlux is a **dictionary-based** detection system. It is designed to catch expli
 - **Sentiment-based hate is out of scope.** Statements whose pejorative meaning is carried entirely by benign vocabulary will not be flagged.
 - **Sarcasm is out of scope.** Utterances whose hostile intent depends on tone or context rather than explicit vocabulary require contextual understanding that dictionary matching cannot provide.
 - **Coded language and evolving slang require ongoing dictionary maintenance.** Dog-whistles and newly coined terms will not be detected until they are added to the dictionary.
+- **L33t that looks like a code is not decoded.** To keep postcodes, quantities and IDs clean, mixed letter/digit tokens of three characters (`f4g`, `a55`), digit-heavy short tokens (`5h17`, `pi55`), and the occasional spelling that is also a valid postcode are read literally. Interleaved l33t in longer words (`sh1t`, `n1gg3r`, `a55hole`, `fagg07`) is unaffected.
 - **The system is context-blind.** Benign idioms that superficially overlap with violent or abusive vocabulary are handled by a combination of safelists and phrase rules, but no dictionary system can reason about speaker intent.
 
 For full-spectrum content moderation, we recommend combining Verlux (fast, offline, deterministic, with strong substring-collision resistance and a small, well-characterised exact-word collision surface that is mitigable via `whitelist`) with a machine-learning-based sentiment or classification layer.
