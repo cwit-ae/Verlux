@@ -10,7 +10,15 @@ import type {
   Severity,
   PhraseEntry,
 } from '../types.js';
-import { normalize, normalizeVariants, unicodeFold } from './normalizer.js';
+import {
+  normalize,
+  normalizeVariants,
+  unicodeFold,
+  looksLikeCode,
+  coreLength,
+  isHexBlob,
+  hasEdgeDigits,
+} from './normalizer.js';
 import { tokenize, phraseWindows, Token } from './tokenizer.js';
 import { bestFuzzyMatch } from './fuzzy.js';
 import {
@@ -678,6 +686,23 @@ const SEVERITY_ORDER: Record<Severity, number> = {
  */
 const MIN_VARIANT_KEY_LENGTH = 3;
 
+const DIGIT_RE = /[0-9]/;
+
+/**
+ * `wordMap` lookup for a key derived from a token. When the token's digits
+ * are kept literal (`looksLikeCode`), a key that still contains a digit can
+ * only reach the dictionary's l33t aliases (`j4p`, `n1g`, `k0n`) — exactly
+ * the reading being withheld — so it is not looked up.
+ */
+function lookupKey(
+  index: DictionaryIndex,
+  key: string,
+  literalDigits: boolean
+): DictionaryEntry | undefined {
+  if (literalDigits && DIGIT_RE.test(key)) return undefined;
+  return index.wordMap.get(key);
+}
+
 /**
  * The only language whose dictionary a transliterated variant may match.
  *
@@ -939,6 +964,21 @@ export function detect(
   const { text: input, indexMap } = unicodeFold(originalInput);
   const results: DetectionResult[] = [];
   const tokens = tokenize(input);
+  const rawSegments = getRawSegments(input);
+  const codeContext = rawSegments.map((_, i) => isCodeContext(rawSegments, i));
+  const hexBlob = rawSegments.map(s => isHexBlob(stripBoundaryPunct(s)?.value ?? ''));
+
+  // Which tokens keep their digits literal — see `looksLikeCode` — and which
+  // sit inside a hex identifier and are not matched at all (`isHexBlob`).
+  // Computed once here because the phrase tier needs the same answer.
+  const literalTokens = new Set<Token>();
+  const hexTokens = new Set<Token>();
+  let seg = 0;
+  for (const token of tokens) {
+    while (seg < rawSegments.length - 1 && rawSegments[seg].end <= token.start) seg++;
+    if (hexBlob[seg]) hexTokens.add(token);
+    if (keepsDigitsLiteral(token.value, codeContext[seg] ?? false)) literalTokens.add(token);
+  }
 
   // Phase 1: Single-word detection (clean tokens)
   for (const token of tokens) {
@@ -946,7 +986,8 @@ export function detect(
     // `fk_company_modules`). An adjacent underscore in the raw input signals
     // that this "word" is an identifier part, not natural language.
     if (isInsideSnakeCase(token, input)) continue;
-    const result = matchToken(token, index, config);
+    if (hexTokens.has(token)) continue;
+    const result = matchToken(token, index, config, literalTokens.has(token));
     if (result) {
       results.push(result);
     }
@@ -954,8 +995,7 @@ export function detect(
 
   // Phase 1.5: Raw segment detection (handles obfuscated words like @$$hole, f.u.c.k)
   // Split by whitespace only, normalize each segment, and check
-  const rawSegments = getRawSegments(input);
-  for (const segment of rawSegments) {
+  for (const [i, segment] of rawSegments.entries()) {
     // Skip if already matched by a token in this position range
     if (results.some(r => r.position[0] <= segment.start && r.position[1] >= segment.end)) {
       continue;
@@ -965,7 +1005,7 @@ export function detect(
     // single-letter obfuscation (`f_u_c_k`) detectable by only skipping when
     // at least one `_`-separated piece is multi-char.
     if (isSnakeCaseIdentifier(segment.value)) continue;
-    const result = matchRawSegment(segment, index, config);
+    const result = matchRawSegment(segment, index, config, codeContext[i]);
     if (result) {
       results.push(result);
     }
@@ -973,7 +1013,7 @@ export function detect(
 
   // Phase 2: Phrase detection
   if (config.phraseDetection && index.phrases.length > 0) {
-    const phraseResults = matchPhrases(tokens, index, config);
+    const phraseResults = matchPhrases(tokens, index, config, literalTokens);
     results.push(...phraseResults);
   }
 
@@ -1009,6 +1049,64 @@ function isSnakeCaseIdentifier(segment: string): boolean {
   if (!segment.includes('_')) return false;
   const parts = segment.split('_').filter(Boolean);
   return parts.length > 1 && parts.some(p => p.length >= 2);
+}
+
+const ALL_DIGITS_RE = /^[0-9]+$/;
+const CODE_PART_SPLIT_RE = /[^\p{L}\p{N}]+/u;
+const LETTER_FIRST_RE = /^\p{L}/u;
+
+/**
+ * Upper bound on the core length of a token that inherits code-ness from its
+ * surroundings (`isCodeContext`). Longer tokens are judged on their own shape
+ * alone, so a real l33t word next to a code (`b1tch`) is still decoded.
+ */
+const MAX_CONTEXT_CODE_LENGTH = 4;
+
+/**
+ * Whether the digits of `text` (a token or a raw segment) are kept literal.
+ * `inCodeContext` is the `isCodeContext` verdict for its whitespace segment.
+ */
+function keepsDigitsLiteral(text: string, inCodeContext: boolean): boolean {
+  if (looksLikeCode(text)) return true;
+  return (
+    inCodeContext &&
+    DIGIT_RE.test(text) &&
+    coreLength(text) <= MAX_CONTEXT_CODE_LENGTH
+  );
+}
+
+/**
+ * Whether short tokens in `segments[i]` belong to a larger code and so keep
+ * their digits literal even though their own shape reads as l33t. Two forms:
+ *
+ *  - Parts of one segment joined by `-`, `/`, `.`, … where one 2+-char part
+ *    is a number or a code and another carries a digit: `SKU-B00B-42`, UUIDs
+ *    (`…-b0ba-…`). Single-char parts don't count, so `N.1.G.G.3.R` stays
+ *    l33t.
+ *  - The previous segment is a short code that starts with a letter, the
+ *    shape of a postcode's first half: Eircode `A60 P3D0`, `D6W P0YA`.
+ *    Digit-first codes (`2nd`, `600k`) are prose and don't qualify.
+ */
+function isCodeContext(segments: RawSegment[], i: number): boolean {
+  // Only a token with a digit is affected, and every form needs one nearby.
+  if (!DIGIT_RE.test(segments[i].value)) return false;
+  const current = stripBoundaryPunct(segments[i]);
+  if (current) {
+    const parts = current.value.split(CODE_PART_SPLIT_RE).filter(p => p.length >= 2);
+    for (const [j, part] of parts.entries()) {
+      const isCodePart = ALL_DIGITS_RE.test(part) || looksLikeCode(part);
+      if (isCodePart && parts.some((other, k) => k !== j && DIGIT_RE.test(other))) {
+        return true;
+      }
+    }
+  }
+  const previous = i > 0 ? stripBoundaryPunct(segments[i - 1]) : null;
+  return (
+    previous !== null &&
+    LETTER_FIRST_RE.test(previous.value) &&
+    looksLikeCode(previous.value) &&
+    coreLength(previous.value) <= MAX_CONTEXT_CODE_LENGTH
+  );
 }
 
 /**
@@ -1073,12 +1171,14 @@ function stripBoundaryPunct(segment: RawSegment): RawSegment | null {
 function matchRawSegment(
   segment: RawSegment,
   index: DictionaryIndex,
-  config: ResolvedConfig
+  config: ResolvedConfig,
+  inCodeContext: boolean
 ): DetectionResult | null {
   const stripped = stripBoundaryPunct(segment);
   if (!stripped) return null;
   segment = stripped;
   const raw = segment.value;
+  if (isHexBlob(raw)) return null;
 
   // Check internal safelist (resolved for this index's languages)
   if (index.safeWords.has(raw.toLowerCase())) return null;
@@ -1096,14 +1196,22 @@ function matchRawSegment(
         end: segment.start + prefix.length,
       },
       index,
-      config
+      config,
+      inCodeContext
     );
   }
+
+  // Codes (`6DU`, `N16`, `600k`) keep their digits literal — see
+  // `looksLikeCode` and `lookupKey`. A word with digits on one edge
+  // (`whor3`) is decoded for a whole-word match only — see `hasEdgeDigits`.
+  const literalDigits = keepsDigitsLiteral(raw, inCodeContext);
+  const edgeDigits = !literalDigits && hasEdgeDigits(raw);
+  if (literalDigits && isExemptWithoutEdgeDigits(raw, index, config)) return null;
 
   // Check raw text directly (catches aliases like 's**t', 'f**k' before normalization strips them)
   const rawLower = raw.toLowerCase();
   if (!config.whitelist.has(rawLower)) {
-    const rawEntry = index.wordMap.get(rawLower);
+    const rawEntry = lookupKey(index, rawLower, literalDigits);
     if (rawEntry && passesFilters(rawEntry, config)) {
       return {
         original: raw,
@@ -1123,13 +1231,13 @@ function matchRawSegment(
   if (isRomanizationExempt(rawLower, index, config)) return null;
 
   // Normalize the full raw segment (this handles @$$hole → asshole, f.u.c.k → fuck)
-  const variants = normalizeVariants(raw);
+  const variants = edgeDigits ? [normalize(raw)] : normalizeVariants(raw, literalDigits);
 
   for (const variant of variants) {
     if (config.whitelist.has(variant)) return null;
     if (variant.length < MIN_VARIANT_KEY_LENGTH && variant !== rawLower) continue;
 
-    const entry = index.wordMap.get(variant);
+    const entry = lookupKey(index, variant, literalDigits);
     if (entry && passesFilters(entry, config)) {
       return {
         original: raw,
@@ -1146,29 +1254,25 @@ function matchRawSegment(
     // Also try partial matching via Aho-Corasick: single linear scan finds
     // any allowPartialMatch word embedded in the variant, regardless of
     // dictionary size. O(variant.length + matches).
-    if (variant.length >= 4 && index.hasPartialPatterns) {
-      const acHits = index.partialAutomaton.search(variant);
-      for (const hit of acHits) {
-        const wordEntry = hit.value;
-        if (!passesFilters(wordEntry, config)) continue;
-        if (hit.pattern === variant) continue; // exact match — already handled above
-        return {
-          original: raw,
-          matched: wordEntry.word,
-          language: wordEntry.language,
-          severity: wordEntry.severity,
-          category: wordEntry.category,
-          position: [segment.start, segment.end],
-          matchType: 'normalized',
-          confidence: 0.8,
-        };
-      }
+    if (!edgeDigits) {
+      const partial = partialSegmentMatch(variant, segment, index, config);
+      if (partial) return partial;
+    }
+  }
+  if (edgeDigits) {
+    // Past the whole-word check the edge digits are literal: the substring
+    // and fuzzy steps see a word plus a number, so the word's own safelist
+    // entry applies (`orgasm7`).
+    if (isExemptWithoutEdgeDigits(raw, index, config)) return null;
+    for (const variant of normalizeVariants(raw, true)) {
+      const partial = partialSegmentMatch(variant, segment, index, config);
+      if (partial) return partial;
     }
   }
 
   // Try fuzzy on normalized form
   if (config.fuzzyMatch) {
-    const normalized = normalize(raw);
+    const normalized = normalize(raw, literalDigits || edgeDigits);
     if (normalized.length >= 3) {
       const firstChar = normalized[0] ?? '';
       const candidates = getFuzzyCandidates(firstChar, normalized.length, index);
@@ -1194,6 +1298,48 @@ function matchRawSegment(
   return null;
 }
 
+/** The Aho-Corasick partial-match step of `matchRawSegment`. */
+function partialSegmentMatch(
+  variant: string,
+  segment: RawSegment,
+  index: DictionaryIndex,
+  config: ResolvedConfig
+): DetectionResult | null {
+  if (variant.length < 4 || !index.hasPartialPatterns) return null;
+  for (const hit of index.partialAutomaton.search(variant)) {
+    const wordEntry = hit.value;
+    if (!passesFilters(wordEntry, config)) continue;
+    if (hit.pattern === variant) continue; // exact match — already handled above
+    return {
+      original: segment.value,
+      matched: wordEntry.word,
+      language: wordEntry.language,
+      severity: wordEntry.severity,
+      category: wordEntry.category,
+      position: [segment.start, segment.end],
+      matchType: 'normalized',
+      confidence: 0.8,
+    };
+  }
+  return null;
+}
+
+const EDGE_DIGITS_RE = /^[0-9]+|[0-9]+$/g;
+
+/**
+ * A code's digits are literal, so a safelisted or whitelisted word with a
+ * number on either end (`twinkle12`, `99twinkle`) is still that word.
+ */
+function isExemptWithoutEdgeDigits(
+  text: string,
+  index: DictionaryIndex,
+  config: ResolvedConfig
+): boolean {
+  const lower = text.toLowerCase();
+  const word = lower.replace(EDGE_DIGITS_RE, '');
+  return word !== lower && (index.safeWords.has(word) || config.whitelist.has(word));
+}
+
 /**
  * Try to match a single token against the dictionary.
  * Goes through the tiered lookup: exact → normalized → alias → fuzzy.
@@ -1201,7 +1347,8 @@ function matchRawSegment(
 function matchToken(
   token: Token,
   index: DictionaryIndex,
-  config: ResolvedConfig
+  config: ResolvedConfig,
+  literalDigits: boolean
 ): DetectionResult | null {
   const raw = token.value.toLowerCase();
 
@@ -1209,8 +1356,20 @@ function matchToken(
   if (config.whitelist.has(raw)) return null;
   if (index.safeWords.has(raw)) return null;
 
+  // `literalDigits`: codes (`6DU`, `N16`, `600k`) keep their digits literal
+  // through every tier — see `looksLikeCode` and `lookupKey`. A word with
+  // digits on one edge (`whor3`) is decoded for a whole-word match in Tier 2
+  // and kept literal in every later tier — see `hasEdgeDigits`.
+  if (literalDigits && isExemptWithoutEdgeDigits(raw, index, config)) return null;
+  const edgeDigits = !literalDigits && hasEdgeDigits(token.value);
+  const literalPastTier2 = literalDigits || edgeDigits;
+  // With the edge digits literal, the later tiers see a word plus a number,
+  // so the word's own safelist entry applies (`orgasm7`).
+  const laterTiersExempt =
+    edgeDigits && isExemptWithoutEdgeDigits(raw, index, config);
+
   // Tier 1: Exact match
-  const exactEntry = index.wordMap.get(raw);
+  const exactEntry = lookupKey(index, raw, literalDigits);
   if (exactEntry && passesFilters(exactEntry, config)) {
     return buildResult(token, exactEntry, 'exact', 1.0);
   }
@@ -1222,11 +1381,13 @@ function matchToken(
   if (isRomanizationExempt(raw, index, config)) return null;
 
   // Tier 2: Normalized match
-  const variants = normalizeVariants(token.value);
+  const variants = edgeDigits
+    ? [normalize(token.value)]
+    : normalizeVariants(token.value, literalDigits);
   for (const variant of variants) {
     if (config.whitelist.has(variant)) return null;
     if (variant.length < MIN_VARIANT_KEY_LENGTH && variant !== raw) continue;
-    const normEntry = index.wordMap.get(variant);
+    const normEntry = lookupKey(index, variant, literalDigits);
     if (normEntry && passesFilters(normEntry, config)) {
       return buildResult(token, normEntry, 'normalized', 0.95);
     }
@@ -1236,12 +1397,12 @@ function matchToken(
   // See the constant's docs: the Hinglish folds are lossy enough that letting
   // their output match any language's dictionary turns everyday words into
   // high-severity hits (`pushy` → `pussy`, `nigh` → `nigger`).
-  if (config.transliteration) {
+  if (config.transliteration && !laterTiersExempt) {
     const translit = transliterate(token.value);
     for (const t of translit) {
-      const tNorm = normalize(t);
+      const tNorm = normalize(t, literalPastTier2);
       if (tNorm.length < MIN_VARIANT_KEY_LENGTH && tNorm !== raw) continue;
-      const tEntry = index.wordMap.get(tNorm);
+      const tEntry = lookupKey(index, tNorm, literalDigits);
       if (
         tEntry &&
         tEntry.language === TRANSLITERATION_LANGUAGE &&
@@ -1255,8 +1416,8 @@ function matchToken(
   // Tier 2.75: Partial/substring match via Aho-Corasick. One linear scan
   // finds any allowPartialMatch word that occurs inside the variant.
   // Catches "fuuuucking" → variant "fucking" contains "fuck".
-  if (index.hasPartialPatterns) {
-    const allVariants = normalizeVariants(token.value);
+  if (index.hasPartialPatterns && !laterTiersExempt) {
+    const allVariants = normalizeVariants(token.value, literalPastTier2);
     for (const variant of allVariants) {
       if (variant.length < 4) continue;
       const acHits = index.partialAutomaton.search(variant);
@@ -1268,10 +1429,10 @@ function matchToken(
       }
     }
   }
-  const normalizedRaw = normalize(raw);
+  const normalizedRaw = normalize(raw, literalPastTier2);
 
   // Tier 3: Fuzzy match
-  if (config.fuzzyMatch && raw.length >= 3) {
+  if (config.fuzzyMatch && raw.length >= 3 && !laterTiersExempt) {
     // Pre-filter: only check words starting with the same letter or within edit distance
     const firstChar = normalizedRaw[0] ?? '';
     const candidates = getFuzzyCandidates(firstChar, raw.length, index);
@@ -1300,7 +1461,8 @@ function matchToken(
 function matchPhrases(
   tokens: Token[],
   index: DictionaryIndex,
-  config: ResolvedConfig
+  config: ResolvedConfig,
+  literalTokens: ReadonlySet<Token>
 ): DetectionResult[] {
   const results: DetectionResult[] = [];
   if (index.phrasesByNormalized.size === 0) return results;
@@ -1321,7 +1483,12 @@ function matchPhrases(
   };
 
   for (const window of windows) {
-    const normalizedPhrase = normalize(window.phrase);
+    // One code in the window keeps the whole window's digits literal — the
+    // key is normalized as a single string, and phrase keys carry no digits.
+    const normalizedPhrase = normalize(
+      window.phrase,
+      window.tokens.some(t => literalTokens.has(t))
+    );
 
     // Caller whitelist. The phrase tier used to skip this entirely, so
     // `whitelist: ['shut up']` could not suppress a phrase entry even though

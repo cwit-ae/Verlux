@@ -56,6 +56,15 @@ const MULTI_CHAR_SEQUENCES: [string, string][] = [
 // Build a Set of first chars for quick pre-filter
 const MULTI_FIRST_CHARS = new Set(MULTI_CHAR_SEQUENCES.map(s => s[0][0]));
 
+// The same table minus every sequence that involves a digit (`13`, `|3`,
+// `|2`, `/2`, `0_`), used when digits are kept literal — see `looksLikeCode`.
+const MULTI_CHAR_SEQUENCES_NO_DIGITS = MULTI_CHAR_SEQUENCES.filter(
+  ([pattern]) => !/[0-9]/.test(pattern)
+);
+const MULTI_FIRST_CHARS_NO_DIGITS = new Set(
+  MULTI_CHAR_SEQUENCES_NO_DIGITS.map(s => s[0][0])
+);
+
 // ─────────────────────────────────────────────
 // SINGLE-CHARACTER SUBSTITUTION MAP
 // ─────────────────────────────────────────────
@@ -158,6 +167,161 @@ const COMBINING_MARK_RE = /[̀-ͯ᪰-᫿᷀-᷿⃐-⃿︠-︯]/;
 // Pure-digit tokens (e.g. "422", "1337") decode to hallucinated matches via
 // SINGLE_MAP (4→a, 2→z, etc.). Skip l33t decoding when the token is all digits.
 const ALL_DIGITS_RE = /^\d+$/;
+
+// ─────────────────────────────────────────────
+// ALPHANUMERIC-CODE GUARD
+// ─────────────────────────────────────────────
+const LETTER_RE = /\p{L}|\p{M}/u;
+
+/**
+ * Whether a token that mixes letters and digits reads as a code — postcode,
+ * road, model or part number, quantity, ID — rather than a l33t-spelled word.
+ * Callers keep the digits of such a token literal: no digit→letter decoding,
+ * and no lookup of the dictionary's own digit-bearing l33t aliases.
+ *
+ * The all-digit short-circuit above closes `422` → `azz`; this closes the
+ * mixed case, which produced a steady supply of high-severity hits on
+ * ordinary codes:
+ *
+ *   6DU  → (6→g)       → `gdu`   → hi-latn `gandu`   HIGH
+ *   N16  → (1→i, 6→g)  → `nig`   → English `nigger`  HIGH   (London postcode)
+ *   900k → (9→g, 0→o)  → `gook`  → English `gook`    HIGH   ("900k views")
+ *   A55  → (5→s)       → `ass`                              (UK road, Galaxy A55)
+ *   J4P  → `j4p`, a listed alias of `jap`               HIGH   (Canadian postal FSA)
+ *
+ * L33t substitutes digits for letters *inside* a word (`sh1t`, `n1gg3r`,
+ * `fagg07`), and heavy l33t can look as random as any code (`n1663r`), so
+ * the generic rules are kept narrow and specific formats are recognised by
+ * their exact structure instead. A token counts as a code when its core —
+ * letters, digits and l33t symbols, separators dropped — mixes letters and
+ * digits and:
+ *
+ *  A. is at most 3 chars, or 4 chars of which 3 are digits. The space is too
+ *     small to tell `N1G` (Guelph, ON) from `n1g`, or flight `5H46` from
+ *     `5h17`, and codes dominate it.
+ *  B. is one letter block and one digit block, with 2 digits and at most 2
+ *     letters (`10kg`, `AB05`, `SE15`) or 3+ digits (`600k`, `brat123`,
+ *     `dark2024`). Edge l33t never runs 3 substitutions together.
+ *  C. is all hex and 6+ chars (`ab33df5` — git SHAs, hash prefixes).
+ *  D. matches a known format: a UK or Canadian postcode written without its
+ *     space (`LA833DB`, `N5H1T3`), or a flight number with 3+ digits
+ *     (`5H1790`).
+ *
+ * A word with 1–2 digits on one edge (`whor3`, `5lut`, `fagg07`, `chars12`)
+ * is still decoded, but only for a whole-word match (`hasEdgeDigits`).
+ *
+ * Detection of a real word inside a code is unaffected — `fuck99` still hits
+ * `fuck` through partial matching — only the digit decoding is withheld.
+ * The matcher extends the guard to short tokens that sit inside a larger code
+ * (`isCodeContext`). Audited by `scripts/audit-alnum-codes-fp.mjs`.
+ */
+export function looksLikeCode(token: string): boolean {
+  if (!HAS_DIGIT_RE.test(token)) return false;
+  const shape = codeShape(token);
+  if (shape.digits === 0 || shape.digits === shape.core) return false;
+  if (shape.core <= 3 || (shape.core === 4 && shape.digits === 3)) return true;
+  if (shape.runs === 2 && (shape.digits >= 3 || (shape.digits === 2 && shape.core <= 4))) {
+    return true;
+  }
+  if (shape.hexOnly && shape.core >= 6) return true;
+  return CODE_FORMATS.some(re => re.test(shape.text));
+}
+
+// UK postcode areas, and the central-London districts that take a letter.
+const UK_AREAS =
+  'ab|al|b|ba|bb|bd|bh|bl|bn|br|bs|bt|ca|cb|cf|ch|cm|co|cr|ct|cv|cw|da|dd|de|' +
+  'dg|dh|dl|dn|dt|dy|e|ec|eh|en|ex|fk|fy|g|gl|gu|gy|ha|hd|hg|hp|hr|hs|hu|hx|' +
+  'ig|im|ip|iv|je|ka|kt|kw|ky|l|la|ld|le|ll|ln|ls|lu|m|me|mk|ml|n|ne|ng|nn|np|' +
+  'nr|nw|ol|ox|pa|pe|ph|pl|po|pr|rg|rh|rm|s|sa|se|sg|sk|sl|sm|sn|so|sp|sr|ss|' +
+  'st|sw|sy|ta|td|tf|tn|tq|tr|ts|tw|ub|w|wa|wc|wd|wf|wn|wr|ws|wv|yo|ze';
+const UK_SUBDISTRICTS =
+  'ec[1-4][amnprvy]|wc1[abehnrvx]|wc2[abehnr]|w1[abcdfghjkstuw]|' +
+  'sw1[aehpvwxy]|se1p|e1w|n1[cp]|nw1w';
+
+/**
+ * Exact formats for D, matched against the lowercased core. Each is specific
+ * enough that a l33t spelling fits it only by coincidence — which is why the
+ * UK pattern lists real areas and sub-districts instead of `[a-z]{1,2}`
+ * (that would read `n1g6er` as `N1G 6ER`). Unspaced Irish Eircodes are not
+ * here: their identifier alphabet covers most letters, so the format admits
+ * l33t words (`r46head`).
+ */
+const CODE_FORMATS: readonly RegExp[] = [
+  // UK postcode, unspaced: outward code + inward code (9AA).
+  new RegExp(
+    `^(?:(?:${UK_AREAS})[1-9][0-9]?|${UK_SUBDISTRICTS})[0-9][abdefghjlnpqrstuwxyz]{2}$`
+  ),
+  // Canadian postal code, unspaced: A9A9A9 (D F I O Q U never used).
+  /^[abceghjklmnprstvxy][0-9][abceghjklmnprstvwxyz][0-9][abceghjklmnprstvwxyz][0-9]$/,
+  // Flight number: 2-char airline designator + 3–4 digits.
+  /^(?:[a-z]{2}|[a-z][0-9]|[0-9][a-z])[0-9]{3,4}$/,
+];
+
+/**
+ * Whether a whitespace segment is a hex identifier — git SHA, UUID, MAC or
+ * IPv6 address, hash: hex digits and separators only, 6+ chars, mixing
+ * letters and digits. Its letters are as random as its digits, so a word
+ * they spell (`…-86ab-eede-…` → `abeed`, a `caca` group) is coincidence, and
+ * the segment is not matched at all.
+ */
+export function isHexBlob(segment: string): boolean {
+  if (!HAS_DIGIT_RE.test(segment)) return false;
+  const shape = codeShape(segment);
+  return shape.hexOnly && shape.core >= 6 && shape.digits > 0 && shape.digits < shape.core;
+}
+
+/**
+ * Whether a token is one letter block plus one digit block on either edge
+ * (`whor3`, `5lut`, `fagg07`, `chars12`) — the shape `looksLikeCode` leaves to
+ * l33t decoding when the digits are few. It is also how usernames and labels
+ * look (`bimbashi7`, `faa69`, `99rope`), so callers accept the decoded token
+ * only as a whole word: its plain `normalize` form must itself be a
+ * dictionary key. The aggressive-collapse variant (`faagg` → `fag`),
+ * transliteration, substring and fuzzy tiers keep the digits literal.
+ */
+export function hasEdgeDigits(token: string): boolean {
+  return HAS_DIGIT_RE.test(token) && codeShape(token).runs === 2;
+}
+
+/** Core length of a token as `looksLikeCode` counts it. */
+export function coreLength(token: string): number {
+  return codeShape(token).core;
+}
+
+interface CodeShape {
+  /** The core, lowercased: letters, digits and l33t symbols, separators dropped. */
+  text: string;
+  core: number;
+  digits: number;
+  /** Alternating letter/digit blocks. */
+  runs: number;
+  hexOnly: boolean;
+}
+
+function codeShape(token: string): CodeShape {
+  const shape: CodeShape = {
+    text: '', core: 0, digits: 0, runs: 0, hexOnly: true,
+  };
+  let prevDigit: boolean | null = null;
+  for (const ch of token) {
+    const isDigit = ch >= '0' && ch <= '9';
+    // Separators (`.`, `-`, `/`, quotes, …) don't count; l33t symbols that
+    // stand in for a letter (`@`, `$`, `*`, `|`, …) count as letters.
+    if (!isDigit && !LETTER_RE.test(ch) && !(ch in SINGLE_MAP)) continue;
+    shape.text += ch.toLowerCase();
+    shape.core++;
+    if (isDigit) shape.digits++;
+    if (isDigit !== prevDigit) shape.runs++;
+    if (!isDigit && !HEX_LETTER_RE.test(ch)) shape.hexOnly = false;
+    prevDigit = isDigit;
+  }
+  return shape;
+}
+
+const HEX_LETTER_RE = /^[a-fA-F]$/;
+// Cheap pre-check: almost all text has no digits, and none of the guards
+// above apply to a token without one.
+const HAS_DIGIT_RE = /[0-9]/;
 
 // ─────────────────────────────────────────────
 // SEPARATOR REGEX (pre-compiled)
@@ -307,8 +471,11 @@ export function unicodeFold(input: string): { text: string; indexMap: number[] }
  * 4. Replace single-char substitutions
  * 5. Collapse repeated characters (3+ → 2)
  * 6. Strip separators between chars
+ *
+ * With `literalDigits`, digits pass through steps 3–4 unchanged — for tokens
+ * that `looksLikeCode`.
  */
-export function normalize(input: string): string {
+export function normalize(input: string, literalDigits = false): string {
   // Step 0: Fold confusables + NFKC. `foldText` is a no-op fast path for
   // pure-ASCII input, so the common case pays only an isAscii scan.
   let text = foldText(input).toLowerCase();
@@ -320,10 +487,10 @@ export function normalize(input: string): string {
   if (ALL_DIGITS_RE.test(text)) return text;
 
   // Step 2: Multi-char l33t decode (greedy, longest-first)
-  text = decodeMultiChar(text);
+  text = decodeMultiChar(text, literalDigits);
 
   // Step 3: Single-char substitution
-  text = decodeSingleChar(text);
+  text = decodeSingleChar(text, literalDigits);
 
   // Step 4: Collapse repeated chars (3+ → 2). Manual scan rather than regex —
   // V8's Irregexp engine overflows its internal stack around 4M+ chars on
@@ -338,10 +505,11 @@ export function normalize(input: string): string {
 
 /**
  * Generate multiple normalized variants for broader matching.
+ * `literalDigits` as for `normalize`.
  */
-export function normalizeVariants(input: string): string[] {
+export function normalizeVariants(input: string, literalDigits = false): string[] {
   const variants = new Set<string>();
-  const base = normalize(input);
+  const base = normalize(input, literalDigits);
   variants.add(base);
 
   // Aggressive collapse: all repeated chars to 1. Manual scan, same reason
@@ -354,8 +522,8 @@ export function normalizeVariants(input: string): string[] {
   let noCollapse = folded.toLowerCase();
   noCollapse = noCollapse.replace(INVISIBLE_RE, '');
   if (!ALL_DIGITS_RE.test(noCollapse)) {
-    noCollapse = decodeMultiChar(noCollapse);
-    noCollapse = decodeSingleChar(noCollapse);
+    noCollapse = decodeMultiChar(noCollapse, literalDigits);
+    noCollapse = decodeSingleChar(noCollapse, literalDigits);
   }
   noCollapse = noCollapse.replace(SEPARATOR_RE, '');
   variants.add(noCollapse.trim());
@@ -371,7 +539,9 @@ export function normalizeVariants(input: string): string[] {
  * Decode multi-character l33t sequences using greedy longest-first matching.
  * Single-pass left-to-right scan.
  */
-function decodeMultiChar(text: string): string {
+function decodeMultiChar(text: string, literalDigits = false): string {
+  const sequences = literalDigits ? MULTI_CHAR_SEQUENCES_NO_DIGITS : MULTI_CHAR_SEQUENCES;
+  const firstChars = literalDigits ? MULTI_FIRST_CHARS_NO_DIGITS : MULTI_FIRST_CHARS;
   let result = '';
   let i = 0;
 
@@ -379,11 +549,11 @@ function decodeMultiChar(text: string): string {
     const char = text[i];
 
     // Quick pre-filter: only attempt multi-char if first char could start a sequence
-    if (MULTI_FIRST_CHARS.has(char)) {
+    if (firstChars.has(char)) {
       let matched = false;
 
       // Try each sequence (already sorted longest-first)
-      for (const [pattern, replacement] of MULTI_CHAR_SEQUENCES) {
+      for (const [pattern, replacement] of sequences) {
         if (i + pattern.length <= text.length) {
           const slice = text.substring(i, i + pattern.length);
           if (slice === pattern) {
@@ -412,9 +582,13 @@ function decodeMultiChar(text: string): string {
  * Decode single-character substitutions.
  * Uses direct map lookup — O(1) per character, O(n) total.
  */
-function decodeSingleChar(text: string): string {
+function decodeSingleChar(text: string, literalDigits = false): string {
   let result = '';
   for (const char of text) {
+    if (literalDigits && char >= '0' && char <= '9') {
+      result += char;
+      continue;
+    }
     result += SINGLE_MAP[char] ?? char;
   }
   return result;

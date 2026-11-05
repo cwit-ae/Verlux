@@ -8,3 +8,22 @@ PUBLISHING.md
 verlux-*.tgz
 scripts/staging/
 .claude/
+
+# IDE / editor config folders (never commit: can auto-run code on folder open)
+.vscode/
+.cursor/
+.idea/
+.vs/
+.fleet/
+.zed/
+.windsurf/
+.kiro/
+.trae/
+.history/
+.settings/
+.project
+.classpath
+nbproject/
+*.code-workspace
+*.sublime-project
+*.sublime-workspace
