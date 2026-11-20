@@ -319,12 +319,16 @@ export const HI_LATN_WORDS: DictionaryEntry[] = [
 ];
 
 export const HI_LATN_PHRASES: PhraseEntry[] = [
+  // "teri maa ki tabiyat kaisi hai" asks after someone's mother. As abuse the
+  // phrase is either cut off ("teri maa ki...") or followed by a word that
+  // is flagged on its own, so it only counts at the end of a sentence.
   {
     phrase: 'teri maa ki',
     words: ['teri', 'maa', 'ki'],
     language: 'hi-latn',
     severity: 'high',
     category: 'sexual',
+    atClauseEnd: true,
   },
   {
     phrase: 'maa ki aankh',
@@ -333,12 +337,20 @@ export const HI_LATN_PHRASES: PhraseEntry[] = [
     severity: 'high',
     category: 'insult',
   },
+  // "behen ki" is just "sister's" ("meri behen ki shaadi hai"). Same rule
+  // as "teri maa ki", and never after a possessive like "meri" / "uski".
   {
     phrase: 'behen ki',
     words: ['behen', 'ki'],
     language: 'hi-latn',
     severity: 'high',
     category: 'sexual',
+    notPrecededBy: [
+      'meri', 'mere', 'apni', 'apne', 'uski', 'uske', 'unki', 'unke', 'hamari',
+      'hamare', 'aapki', 'aapke', 'iski', 'iske', 'inki', 'inke', 'kiski',
+      'kiske', 'sabki', 'sabke',
+    ],
+    atClauseEnd: true,
   },
   {
     phrase: 'teri gaand',

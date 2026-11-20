@@ -257,7 +257,23 @@ verlux.addWords([
     aliases: ["<abbreviation>"],
   },
 ]);
+
+verlux.addPhrases([
+  {
+    phrase: "<threat phrase>",
+    words: ["<threat>", "<phrase>"],
+    language: "en",
+    severity: "high",
+    category: "threat",
+    // Optional context rules, for phrases that are harmless in some sentences:
+    notFollowedBy: ["down", "and back"], // next word(s) that cancel the match
+    notPrecededBy: ["nobody", "no one"], // previous word(s) that cancel it
+    atClauseEnd: true,                   // only at the end of a sentence or clause
+  },
+]);
 ```
+
+Phrases are matched as written and with English contractions spelled out, so a phrase entered as `you will pay for this` also matches `you'll pay for this`, and one entered with a contraction matches the full form. Context words are compared the same way (`"not"` also matches `didn't`) and case-insensitively; for Hinglish phrases they go through the same spelling folds as the phrase itself. Punctuation between a phrase and its neighbour breaks the link: `notFollowedBy: ["down"]` does not cancel `"it should die. Down with it"`. `atClauseEnd` is satisfied by the end of the text, a line break, or any punctuation or emoji, but not by another word. Phrases may be any length.
 
 ---
 
@@ -330,7 +346,11 @@ Input Text
 [6] Fuzzy Match       ── Levenshtein distance with length-based pre-filtering
     |
     v
-[7] Phrase Detection  ── N-gram windowing over 2- to 5-word spans
+[7] Phrase Detection  ── N-gram windowing over 2- to 5-word spans (wider when a custom
+    |                    phrase is longer), matched as written and again with English
+    |                    contractions spelled out (`I'll` → `I will`, `gonna` → `going to`);
+    |                    per-phrase context rules then drop the harmless uses
+    |                    ("should die down", "you will pay for this order")
     |
     v
 [8] Deduplicate       ── removes overlapping matches, retaining the highest-confidence result
@@ -460,9 +480,9 @@ Measured on commodity developer hardware with the full multi-language index load
 
 ## Dictionary Coverage
 
-**Total:** 5 languages — 741 words and 127 phrases across English, Hinglish, Spanish, French, and German. The tables below describe the dictionary at the category level only. Specific vocabulary is deliberately omitted from this document; the authoritative wordlists reside under [`src/dictionaries/`](./src/dictionaries).
+**Total:** 5 languages — 741 words and 147 phrases across English, Hinglish, Spanish, French, and German. The tables below describe the dictionary at the category level only. Specific vocabulary is deliberately omitted from this document; the authoritative wordlists reside under [`src/dictionaries/`](./src/dictionaries).
 
-### English — 518 words, 75 phrases
+### English — 518 words, 95 phrases
 
 | Category                         | Entries | Scope                                                                                                         |
 | -------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------- |
@@ -480,7 +500,7 @@ Measured on commodity developer hardware with the full multi-language index load
 | Self-harm references             | 5       | Direct references and common abbreviations, with complementary phrase detection                               |
 | Explicit-content terms           | 15+     | Vocabulary used to describe pornographic or non-consensual content                                            |
 | Drug references                  | 4       | Commonly misused substance names                                                                              |
-| Phrases                          | 71      | Multi-word expressions including violent threats, hate-ideology slogans, and incitements to self-harm         |
+| Phrases                          | 95      | Multi-word expressions including violent threats, hate-ideology slogans, and incitements to self-harm         |
 
 ### Hinglish (Hindi–Latin script) — 32 words, 13 phrases
 
@@ -631,6 +651,7 @@ Verlux is a **dictionary-based** detection system. It is designed to catch expli
 - **Coded language and evolving slang require ongoing dictionary maintenance.** Dog-whistles and newly coined terms will not be detected until they are added to the dictionary.
 - **L33t that looks like a code is not decoded.** To keep postcodes, quantities and IDs clean, mixed letter/digit tokens of three characters (`f4g`, `a55`), digit-heavy short tokens (`5h17`, `pi55`), and the occasional spelling that is also a valid postcode are read literally. Interleaved l33t in longer words (`sh1t`, `n1gg3r`, `a55hole`, `fagg07`) is unaffected.
 - **The system is context-blind.** Benign idioms that superficially overlap with violent or abusive vocabulary are handled by a combination of safelists and phrase rules, but no dictionary system can reason about speaker intent.
+- **Phrase context rules look one step away.** A phrase rule sees the words immediately around the match and whether the sentence ends there — enough to tell "the noise should die down" or "you will pay for this order" from the threat, but not "you will pay for this, the shop said". Some phrases stay ambiguous by nature and are kept for safety: self-harm phrases also match people discussing the topic, and "I will find you" still matches the friendly "I'll find you when I land". Contractions typed without an apostrophe are expanded only where the spelling is unambiguous, so `ill kill you` (`ill` is also a word) is not read as `I'll`.
 
 For full-spectrum content moderation, we recommend combining Verlux (fast, offline, deterministic, with strong substring-collision resistance and a small, well-characterised exact-word collision surface that is mitigable via `whitelist`) with a machine-learning-based sentiment or classification layer.
 

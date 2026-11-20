@@ -54,6 +54,11 @@ function assertValidPack(pack: LanguagePack): void {
     if (!Array.isArray(p.words) || p.words.length === 0) {
       throw new TypeError(`[verlux/${pack.code}] phrase "${p.phrase}" missing words array`);
     }
+    for (const list of [p.notFollowedBy, p.notPrecededBy]) {
+      if (list !== undefined && !list.every(w => typeof w === 'string' && w.trim().length > 0)) {
+        throw new TypeError(`[verlux/${pack.code}] phrase "${p.phrase}" has an empty context word`);
+      }
+    }
   });
 }
 

@@ -28,6 +28,14 @@ import {
   foldTokenForPhrase,
 } from './transliterator.js';
 import { AhoCorasick } from './aho-corasick.js';
+import {
+  expandContractions,
+  hasPhraseContext,
+  compilePhraseContext,
+  violatesPhraseContext,
+  CompiledPhraseContext,
+  PhraseToken,
+} from './phrase-context.js';
 
 /**
  * Internal safelist, keyed by the language in which the surface form is a
@@ -761,6 +769,22 @@ function joinPhraseKey(parts: string[]): string {
   return parts.join('');
 }
 
+const COMBINING_MARKS_RE = /\p{M}/gu;
+
+function plainWordKey(word: string): string {
+  return word.toLowerCase().normalize('NFD').replace(COMBINING_MARKS_RE, '');
+}
+
+/**
+ * How a phrase's context words (`notFollowedBy`, `notPrecededBy`) are compared
+ * with the words around a match. Hinglish compares through the same
+ * phonetic fold its phrases are matched with, so `meri`, `meree` and `मेरी`
+ * are one word; every other language compares case- and accent-insensitively.
+ */
+function phraseWordKey(language: string): (word: string) => string {
+  return language === TRANSLITERATION_LANGUAGE ? foldPhraseWord : plainWordKey;
+}
+
 /**
  * Whether a Devanagari token is exempted by way of its romanization.
  *
@@ -826,6 +850,21 @@ interface DictionaryIndex {
    * folding every window cost more than the rest of detection combined.
    */
   phraseTokenCounts: Set<number>;
+  /**
+   * Widest phrase entry, in tokens (raw or contraction-expanded, whichever is
+   * longer). The n-gram windows go up to this width, so a custom phrase longer
+   * than the built-ins is matchable instead of silently ignored.
+   */
+  maxPhraseTokens: number;
+  /** Compiled context constraints, for the entries that declare any. */
+  phraseContexts: Map<PhraseEntry, CompiledPhraseContext>;
+  /**
+   * The normalized first word of every phrase entry, raw and expanded. The
+   * contraction pass skips any window whose first word is not in here before
+   * building its key — most windows in ordinary English contain a contraction
+   * somewhere, so without this the pass costs as much as the raw one.
+   */
+  phraseFirstWords: Set<string>;
   /** All canonical words (for fuzzy matching) */
   allWords: string[];
   /** Aho-Corasick automaton over allowPartialMatch words (all languages) —
@@ -907,14 +946,36 @@ export function buildIndex(entries: DictionaryEntry[], phrases: PhraseEntry[] = 
   const phrasesByNormalized = new Map<string, PhraseEntry[]>();
   const phrasesByTransliterated = new Map<string, PhraseEntry[]>();
   const phraseTokenCounts = new Set<number>();
-  for (const phraseEntry of phrases) {
-    const key = normalize(phraseEntry.phrase);
+  const phraseContexts = new Map<PhraseEntry, CompiledPhraseContext>();
+  const phraseFirstWords = new Set<string>();
+  let maxPhraseTokens = 2;
+  const addPhraseKey = (key: string, entry: PhraseEntry): void => {
     let bucket = phrasesByNormalized.get(key);
     if (!bucket) {
       bucket = [];
       phrasesByNormalized.set(key, bucket);
     }
-    bucket.push(phraseEntry);
+    if (!bucket.includes(entry)) bucket.push(entry);
+  };
+  for (const phraseEntry of phrases) {
+    addPhraseKey(normalize(phraseEntry.phrase), phraseEntry);
+
+    // Also key the entry by its contraction-expanded form, which is what the
+    // expanded input stream produces: "you'll pay" and "you will pay" are then
+    // one entry, whichever way it was written.
+    const rawTokens = tokenize(phraseEntry.phrase);
+    const expanded = expandContractions(rawTokens, phraseEntry.phrase);
+    if (expanded.some(t => t.rewritten)) {
+      addPhraseKey(normalize(expanded.map(t => t.value).join(' ')), phraseEntry);
+    }
+    maxPhraseTokens = Math.max(maxPhraseTokens, rawTokens.length, expanded.length);
+    if (rawTokens[0]) phraseFirstWords.add(normalize(rawTokens[0].value));
+    if (expanded[0]) phraseFirstWords.add(normalize(expanded[0].value));
+
+    if (hasPhraseContext(phraseEntry)) {
+      const wordKey = phraseWordKey(phraseEntry.language);
+      phraseContexts.set(phraseEntry, compilePhraseContext(phraseEntry, tokenize, wordKey));
+    }
 
     // Fold the stored side too, so a phrase matches whichever romanization
     // the writer used. Only for the transliteration language — see the field
@@ -939,6 +1000,9 @@ export function buildIndex(entries: DictionaryEntry[], phrases: PhraseEntry[] = 
     phrasesByNormalized,
     phrasesByTransliterated,
     phraseTokenCounts,
+    maxPhraseTokens,
+    phraseContexts,
+    phraseFirstWords,
     allWords,
     partialAutomaton,
     hasPartialPatterns: seenPartialKeys.size > 0,
@@ -1013,7 +1077,7 @@ export function detect(
 
   // Phase 2: Phrase detection
   if (config.phraseDetection && index.phrases.length > 0) {
-    const phraseResults = matchPhrases(tokens, index, config, literalTokens);
+    const phraseResults = matchPhrases(tokens, input, index, config, literalTokens);
     results.push(...phraseResults);
   }
 
@@ -1470,12 +1534,23 @@ function matchToken(
 /**
  * Match multi-word phrases against the phrase dictionary.
  *
+ * Two passes over n-gram windows:
+ *  1. the raw tokens, as written;
+ *  2. the contraction-expanded stream (`expandContractions`), restricted to
+ *     windows that contain an expanded token — every other window reads the
+ *     same in both streams and was already looked up in pass 1.
+ * Context constraints (`notFollowedBy`, `notPrecededBy`, `atClauseEnd`) are
+ * checked against the expanded stream in both passes, so "didn't deserve to
+ * die" sees `not` before the phrase rather than the bare `t` the tokenizer
+ * split off.
+ *
  * Performance: each window does an O(1) Map lookup against the pre-normalized
  * phrase index (`phrasesByNormalized`). Per-call cost is O(W + matches),
  * where W is the number of n-gram windows generated from the input tokens.
  */
 function matchPhrases(
   tokens: Token[],
+  input: string,
   index: DictionaryIndex,
   config: ResolvedConfig,
   literalTokens: ReadonlySet<Token>
@@ -1483,7 +1558,25 @@ function matchPhrases(
   const results: DetectionResult[] = [];
   if (index.phrasesByNormalized.size === 0) return results;
 
-  const windows = phraseWindows(tokens, 5);
+  const maxSize = index.maxPhraseTokens;
+  const stream = expandContractions(tokens, input);
+
+  // Where each raw token sits in the expanded stream, so a pass-1 match is
+  // checked against the same neighbours a pass-2 match would be. Built on
+  // first use: only a match on an entry with context constraints needs it.
+  let streamFirst: Map<Token, number> | null = null;
+  let streamLast: Map<Token, number> | null = null;
+  const streamRange = (from: Token, to: Token): [number, number] => {
+    if (!streamFirst || !streamLast) {
+      streamFirst = new Map();
+      streamLast = new Map();
+      for (let k = 0; k < stream.length; k++) {
+        if (!streamFirst.has(stream[k].source)) streamFirst.set(stream[k].source, k);
+        streamLast.set(stream[k].source, k);
+      }
+    }
+    return [streamFirst.get(from)!, streamLast.get(to)!];
+  };
 
   // Each token's folded key contribution, computed at most once and shared by
   // every window it belongs to. Filled lazily: in text with no Hinglish
@@ -1498,7 +1591,51 @@ function matchPhrases(
     return folded;
   };
 
-  for (const window of windows) {
+  const accept = (
+    matches: PhraseEntry[],
+    viaTransliteration: boolean,
+    span: () => [first: number, last: number],
+    start: number,
+    end: number
+  ): void => {
+    for (const phraseEntry of matches) {
+      // A folded match is only ever valid for the language whose folds
+      // produced it; `phrasesByTransliterated` holds nothing else, but the
+      // guard keeps that invariant local to the read as well as the write.
+      if (viaTransliteration && phraseEntry.language !== TRANSLITERATION_LANGUAGE) continue;
+
+      // Language filter
+      if (config.languages && !config.languages.includes(phraseEntry.language)) continue;
+
+      // Severity filter
+      if (SEVERITY_ORDER[phraseEntry.severity] < SEVERITY_ORDER[config.minSeverity]) continue;
+
+      // The words around the match decide whether it is the abusive use.
+      const context = index.phraseContexts.get(phraseEntry);
+      if (context) {
+        const [first, last] = span();
+        if (violatesPhraseContext(context, stream, first, last, input, phraseWordKey(phraseEntry.language))) {
+          continue;
+        }
+      }
+
+      results.push({
+        original: input.slice(start, end),
+        matched: phraseEntry.phrase,
+        language: phraseEntry.language,
+        severity: phraseEntry.severity,
+        category: phraseEntry.category,
+        position: [start, end],
+        matchType: 'phrase',
+        // A folded match reached the entry through a lossy rewrite, so it
+        // carries the same 0.9 the word-level transliteration tier reports.
+        confidence: viaTransliteration ? 0.9 : 1.0,
+      });
+    }
+  };
+
+  // Pass 1: the raw tokens.
+  for (const window of phraseWindows(tokens, maxSize)) {
     // One code in the window keeps the whole window's digits literal — the
     // key is normalized as a single string, and phrase keys carry no digits.
     const normalizedPhrase = normalize(
@@ -1537,31 +1674,51 @@ function matchPhrases(
     }
 
     if (!matches) continue;
+    accept(
+      matches,
+      viaTransliteration,
+      () => streamRange(window.tokens[0], window.tokens[window.tokens.length - 1]),
+      window.start,
+      window.end
+    );
+  }
 
-    for (const phraseEntry of matches) {
-      // A folded match is only ever valid for the language whose folds
-      // produced it; `phrasesByTransliterated` holds nothing else, but the
-      // guard keeps that invariant local to the read as well as the write.
-      if (viaTransliteration && phraseEntry.language !== TRANSLITERATION_LANGUAGE) continue;
+  // Pass 2: windows of the expanded stream that contain an expansion. Two
+  // O(1) checks run before anything is sliced or normalized: a prefix count
+  // of expanded tokens (does the window contain one?) and the first-word set
+  // (could any entry start here?). No transliteration fallback here: the
+  // expansions are English, and Hinglish phrases contain no contractions.
+  if (!stream.some(t => t.rewritten)) return results;
+  const rewrittenBefore = new Int32Array(stream.length + 1);
+  for (let k = 0; k < stream.length; k++) {
+    rewrittenBefore[k + 1] = rewrittenBefore[k] + (stream[k].rewritten ? 1 : 0);
+  }
+  for (let first = 0; first < stream.length; first++) {
+    // No expansion within reach of a window starting here.
+    const reach = Math.min(first + maxSize, stream.length);
+    if (rewrittenBefore[reach] === rewrittenBefore[first]) continue;
+    const firstWord = normalize(stream[first].value, literalTokens.has(stream[first].source));
+    if (!index.phraseFirstWords.has(firstWord)) continue;
+    for (let size = 2; size <= maxSize && first + size <= stream.length; size++) {
+      if (rewrittenBefore[first + size] === rewrittenBefore[first]) continue;
+      const last = first + size - 1;
+      const slice: PhraseToken[] = stream.slice(first, last + 1);
+      const phrase = slice.map(t => t.value).join(' ');
+      const key = normalize(phrase, slice.some(t => literalTokens.has(t.source)));
+      const start = stream[first].start;
+      const end = stream[last].end;
 
-      // Language filter
-      if (config.languages && !config.languages.includes(phraseEntry.language)) continue;
+      // Whitelisted under either spelling: "you will pay" or "you'll pay".
+      if (config.whitelist.has(phrase.toLowerCase()) || config.whitelist.has(key)) continue;
+      if (config.whitelist.size > 0) {
+        const surface = input.slice(start, end);
+        if (config.whitelist.has(surface.toLowerCase()) || config.whitelist.has(normalize(surface))) {
+          continue;
+        }
+      }
 
-      // Severity filter
-      if (SEVERITY_ORDER[phraseEntry.severity] < SEVERITY_ORDER[config.minSeverity]) continue;
-
-      results.push({
-        original: window.phrase,
-        matched: phraseEntry.phrase,
-        language: phraseEntry.language,
-        severity: phraseEntry.severity,
-        category: phraseEntry.category,
-        position: [window.start, window.end],
-        matchType: 'phrase',
-        // A folded match reached the entry through a lossy rewrite, so it
-        // carries the same 0.9 the word-level transliteration tier reports.
-        confidence: viaTransliteration ? 0.9 : 1.0,
-      });
+      const matches = index.phrasesByNormalized.get(key);
+      if (matches) accept(matches, false, () => [first, last], start, end);
     }
   }
 
