@@ -1145,23 +1145,25 @@ const CONTRACTION_RE = /^([A-Za-z]{2,})(['‘’])(?:ll|d|ve|re|s|m|t)$/i;
 // `|=uck`, `5lut` continue to match. The set is symmetric across both edges
 // so transposed punctuation like `><con` or `].con` also strips cleanly to a
 // correctly-positioned inner span.
-const LEADING_PUNCT_RE = /^[([{<>)\]}'"`‘’“”«»‹›,.;:?#]+/;
-const TRAILING_PUNCT_RE = /[([{<>)\]}'"`‘’“”«»‹›,.;:?#]+$/;
+//
+// Both edges are scanned by hand rather than with `[…]+$`: an unanchored
+// trailing regex is retried from every start position, which is quadratic on
+// a long run of these characters (CodeQL js/polynomial-redos). Every char in
+// the set is a single UTF-16 code unit, so indexing by code unit is safe.
+const BOUNDARY_PUNCT = new Set('([{<>)]}\'"`‘’“”«»‹›,.;:?#');
 
 function stripBoundaryPunct(segment: RawSegment): RawSegment | null {
-  let { value, start, end } = segment;
-  const lead = LEADING_PUNCT_RE.exec(value);
-  if (lead) {
-    value = value.slice(lead[0].length);
-    start += lead[0].length;
-  }
-  const trail = TRAILING_PUNCT_RE.exec(value);
-  if (trail) {
-    value = value.slice(0, value.length - trail[0].length);
-    end -= trail[0].length;
-  }
-  if (!value) return null;
-  return { value, start, end };
+  const { value } = segment;
+  let lead = 0;
+  while (lead < value.length && BOUNDARY_PUNCT.has(value[lead])) lead++;
+  let trail = value.length;
+  while (trail > lead && BOUNDARY_PUNCT.has(value[trail - 1])) trail--;
+  if (lead === trail) return null;
+  return {
+    value: value.slice(lead, trail),
+    start: segment.start + lead,
+    end: segment.end - (value.length - trail),
+  };
 }
 
 /**
@@ -1324,7 +1326,21 @@ function partialSegmentMatch(
   return null;
 }
 
-const EDGE_DIGITS_RE = /^[0-9]+|[0-9]+$/g;
+const isAsciiDigit = (ch: string): boolean => ch >= '0' && ch <= '9';
+
+/**
+ * Drop the digit runs on both edges (`99twinkle12` → `twinkle`). Scanned by
+ * hand rather than with `/^[0-9]+|[0-9]+$/g`, whose `[0-9]+$` branch is
+ * retried at every digit and goes quadratic on a long run of digits that
+ * doesn't reach the end (CodeQL js/polynomial-redos).
+ */
+function stripEdgeDigits(text: string): string {
+  let lead = 0;
+  while (lead < text.length && isAsciiDigit(text[lead])) lead++;
+  let trail = text.length;
+  while (trail > lead && isAsciiDigit(text[trail - 1])) trail--;
+  return text.slice(lead, trail);
+}
 
 /**
  * A code's digits are literal, so a safelisted or whitelisted word with a
@@ -1336,7 +1352,7 @@ function isExemptWithoutEdgeDigits(
   config: ResolvedConfig
 ): boolean {
   const lower = text.toLowerCase();
-  const word = lower.replace(EDGE_DIGITS_RE, '');
+  const word = stripEdgeDigits(lower);
   return word !== lower && (index.safeWords.has(word) || config.whitelist.has(word));
 }
 
