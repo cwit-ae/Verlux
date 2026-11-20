@@ -4886,12 +4886,14 @@ export const EN_PHRASES: PhraseEntry[] = [
     severity: "high",
     category: "insult",
   },
+  // "shut up shop" is British for closing for the day.
   {
     phrase: "shut up",
     words: ["shut", "up"],
     language: "en",
     severity: "low",
     category: "insult",
+    notFollowedBy: ["shop"],
   },
   {
     phrase: "son of a bitch",
@@ -4913,6 +4915,7 @@ export const EN_PHRASES: PhraseEntry[] = [
     language: "en",
     severity: "medium",
     category: "insult",
+    notFollowedBy: ["and back"],
   },
   {
     phrase: "eat shit",
@@ -4970,12 +4973,18 @@ export const EN_PHRASES: PhraseEntry[] = [
     severity: "high",
     category: "insult",
   },
+  // Not the household "white trash bag" / "white trash can".
   {
     phrase: "white trash",
     words: ["white", "trash"],
     language: "en",
     severity: "high",
     category: "slur",
+    notFollowedBy: [
+      "bag", "bags", "can", "cans", "bin", "bins", "liner", "liners",
+      "container", "containers", "basket", "baskets", "sack", "sacks",
+      "barrel", "barrels", "lid", "lids",
+    ],
   },
 
   // --- Sexual ---
@@ -5009,19 +5018,25 @@ export const EN_PHRASES: PhraseEntry[] = [
     severity: "high",
     category: "threat",
   },
+  // "they did not deserve to die" is grief, not a threat. Contractions are
+  // expanded first, so "didn't" reads as "did not".
   {
     phrase: "deserve to die",
     words: ["deserve", "to", "die"],
     language: "en",
     severity: "high",
     category: "threat",
+    notPrecededBy: ["not", "never", "nobody"],
   },
+  // "the noise should die down", "nobody should die waiting for care".
   {
     phrase: "should die",
     words: ["should", "die"],
     language: "en",
     severity: "high",
     category: "threat",
+    notFollowedBy: ["down", "back", "off", "out", "away"],
+    notPrecededBy: ["nobody", "no one", "noone"],
   },
   {
     phrase: "hang yourself",
@@ -5062,19 +5077,75 @@ export const EN_PHRASES: PhraseEntry[] = [
   },
 
   // --- Call Center Threats (customer threatening agent) ---
+  // A bare "i will kill" also covers "I will kill the process", "I will kill
+  // some time" and "I will kill it at the interview", so only the forms aimed
+  // at a person are listed. Contractions are expanded before phrase lookup
+  // ("I'll", "I'm gonna", "imma"), so each entry covers those spellings too.
   {
-    phrase: "i will kill",
-    words: ["i", "will", "kill"],
+    phrase: "i will kill you",
+    words: ["i", "will", "kill", "you"],
     language: "en",
     severity: "high",
     category: "threat",
   },
+  {
+    phrase: "we will kill you",
+    words: ["we", "will", "kill", "you"],
+    language: "en",
+    severity: "high",
+    category: "threat",
+  },
+  {
+    phrase: "i will kill him",
+    words: ["i", "will", "kill", "him"],
+    language: "en",
+    severity: "high",
+    category: "threat",
+  },
+  {
+    phrase: "i will kill her",
+    words: ["i", "will", "kill", "her"],
+    language: "en",
+    severity: "high",
+    category: "threat",
+  },
+  // Not "smoking is going to kill you" / "your mom's gonna kill you".
+  {
+    phrase: "going to kill you",
+    words: ["going", "to", "kill", "you"],
+    language: "en",
+    severity: "high",
+    category: "threat",
+    notPrecededBy: ["is", "s"],
+  },
+  {
+    phrase: "i will murder you",
+    words: ["i", "will", "murder", "you"],
+    language: "en",
+    severity: "high",
+    category: "threat",
+  },
+  {
+    phrase: "going to murder you",
+    words: ["going", "to", "murder", "you"],
+    language: "en",
+    severity: "high",
+    category: "threat",
+    notPrecededBy: ["is", "s"],
+  },
+  // Not "I will find you a seat" / "I'll find you the link tomorrow".
   {
     phrase: "i will find you",
     words: ["i", "will", "find", "you"],
     language: "en",
     severity: "high",
     category: "threat",
+    notFollowedBy: [
+      "a", "an", "the", "some", "something", "someone", "somebody", "anything",
+      "one", "another", "more", "better", "it", "them", "that", "this",
+      "those", "these", "at", "on", "after", "later", "when", "before",
+      "tomorrow", "tonight", "soon", "there", "here", "online", "guys",
+    ],
   },
   {
     phrase: "i know where you live",
@@ -5083,19 +5154,31 @@ export const EN_PHRASES: PhraseEntry[] = [
     severity: "high",
     category: "threat",
   },
+  // Not the safety advice "watch your back when lifting".
   {
     phrase: "watch your back",
     words: ["watch", "your", "back"],
     language: "en",
     severity: "high",
     category: "threat",
+    notFollowedBy: [
+      "posture", "muscles", "muscle", "pain", "injury", "injuries",
+      "alignment", "health", "strain", "when lifting", "while lifting",
+      "when bending", "while bending", "when you lift", "while you lift",
+    ],
   },
+  // "dead" as an intensifier: "you are dead right", "you're dead on".
   {
     phrase: "you are dead",
     words: ["you", "are", "dead"],
     language: "en",
     severity: "high",
     category: "threat",
+    notFollowedBy: [
+      "right", "wrong", "on", "serious", "tired", "set", "last", "center",
+      "centre", "ahead", "broke", "even", "sure", "certain", "honest",
+      "against", "lucky", "easy", "keen",
+    ],
   },
   {
     phrase: "burn in hell",
@@ -5111,9 +5194,11 @@ export const EN_PHRASES: PhraseEntry[] = [
     severity: "medium",
     category: "insult",
   },
+  // A bare "waste of space" is mostly said of things ("this sidebar is a
+  // waste of space"); the insult is aimed at a person.
   {
-    phrase: "waste of space",
-    words: ["waste", "of", "space"],
+    phrase: "you are a waste of",
+    words: ["you", "are", "a", "waste", "of"],
     language: "en",
     severity: "medium",
     category: "insult",
@@ -5160,25 +5245,140 @@ export const EN_PHRASES: PhraseEntry[] = [
     severity: "high",
     category: "threat",
   },
+  // Not "this song will get you fired up".
   {
     phrase: "get you fired",
     words: ["get", "you", "fired"],
     language: "en",
     severity: "low",
     category: "threat",
+    notFollowedBy: ["up"],
+  },
+  // "you will regret" alone is sales copy as often as a threat ("you will
+  // regret missing this sale", "you'll regret it if you skip stretching").
+  {
+    phrase: "you will regret this",
+    words: ["you", "will", "regret", "this"],
+    language: "en",
+    severity: "medium",
+    category: "threat",
+    atClauseEnd: true,
   },
   {
-    phrase: "you will regret",
-    words: ["you", "will", "regret"],
+    phrase: "you will regret that",
+    words: ["you", "will", "regret", "that"],
+    language: "en",
+    severity: "medium",
+    category: "threat",
+    atClauseEnd: true,
+  },
+  {
+    phrase: "i will make you regret",
+    words: ["i", "will", "make", "you", "regret"],
     language: "en",
     severity: "medium",
     category: "threat",
   },
   {
-    phrase: "you will pay",
-    words: ["you", "will", "pay"],
+    phrase: "regret crossing me",
+    words: ["regret", "crossing", "me"],
     language: "en",
     severity: "medium",
+    category: "threat",
+  },
+  {
+    phrase: "regret messing with me",
+    words: ["regret", "messing", "with", "me"],
+    language: "en",
+    severity: "medium",
+    category: "threat",
+  },
+  // "you will pay" on its own is ordinary billing language ("you will pay the
+  // bill", "you will pay by card"), and so is "you will pay for this order",
+  // so the "for this / for that" forms only count at the end of a sentence
+  // ("you will pay for this!"). Contractions are expanded before lookup, so
+  // each entry also covers "you'll pay for this".
+  {
+    phrase: "you will pay for this",
+    words: ["you", "will", "pay", "for", "this"],
+    language: "en",
+    severity: "medium",
+    category: "threat",
+    atClauseEnd: true,
+  },
+  {
+    phrase: "you will pay for that",
+    words: ["you", "will", "pay", "for", "that"],
+    language: "en",
+    severity: "medium",
+    category: "threat",
+    atClauseEnd: true,
+  },
+  // "you will pay for what you did", listed by its last five words: the
+  // phrase windows are as wide as the widest entry, and every extra word
+  // of width is paid for on every detect() call.
+  {
+    phrase: "pay for what you did",
+    words: ["pay", "for", "what", "you", "did"],
+    language: "en",
+    severity: "medium",
+    category: "threat",
+  },
+  // Not the advice "you'll pay dearly in fuel costs".
+  {
+    phrase: "you will pay dearly",
+    words: ["you", "will", "pay", "dearly"],
+    language: "en",
+    severity: "medium",
+    category: "threat",
+    atClauseEnd: true,
+  },
+  {
+    phrase: "pay dearly for this",
+    words: ["pay", "dearly", "for", "this"],
+    language: "en",
+    severity: "medium",
+    category: "threat",
+    atClauseEnd: true,
+  },
+  {
+    phrase: "pay dearly for that",
+    words: ["pay", "dearly", "for", "that"],
+    language: "en",
+    severity: "medium",
+    category: "threat",
+    atClauseEnd: true,
+  },
+  // Not "I will make you pay the deposit first".
+  {
+    phrase: "i will make you pay",
+    words: ["i", "will", "make", "you", "pay"],
+    language: "en",
+    severity: "medium",
+    category: "threat",
+    atClauseEnd: true,
+  },
+  {
+    phrase: "make you pay for this",
+    words: ["make", "you", "pay", "for", "this"],
+    language: "en",
+    severity: "medium",
+    category: "threat",
+    atClauseEnd: true,
+  },
+  {
+    phrase: "make you pay for that",
+    words: ["make", "you", "pay", "for", "that"],
+    language: "en",
+    severity: "medium",
+    category: "threat",
+    atClauseEnd: true,
+  },
+  {
+    phrase: "pay with your life",
+    words: ["pay", "with", "your", "life"],
+    language: "en",
+    severity: "high",
     category: "threat",
   },
   {
@@ -5288,11 +5488,20 @@ export const EN_PHRASES: PhraseEntry[] = [
     severity: "low",
     category: "insult",
   },
+  // "do us a favor" is mostly a polite request ("could you do us a favor
+  // and send the report"); the insult is the "... and die" ending.
   {
-    phrase: "do us a favor",
-    words: ["do", "us", "a", "favor"],
+    phrase: "favor and die",
+    words: ["favor", "and", "die"],
     language: "en",
-    severity: "low",
+    severity: "medium",
+    category: "insult",
+  },
+  {
+    phrase: "favour and die",
+    words: ["favour", "and", "die"],
+    language: "en",
+    severity: "medium",
     category: "insult",
   },
   // --- Extended phrases (v1.1) ---
@@ -5333,12 +5542,14 @@ export const EN_PHRASES: PhraseEntry[] = [
     severity: "low",
     category: "insult",
   },
+  // Not "take the jack off the car".
   {
     phrase: "jack off",
     words: ["jack", "off"],
     language: "en",
     severity: "medium",
     category: "sexual",
+    notPrecededBy: ["the", "a"],
   },
   {
     phrase: "jerk off",

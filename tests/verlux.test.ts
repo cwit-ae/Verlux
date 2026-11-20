@@ -171,5 +171,8 @@ describe('Verlux', () => {
       const results = verlux.detect('teri maa ki');
       expect(results.some(r => r.matchType === 'phrase')).toBe(true);
     });
+
+    // Context-dependent phrases ("you will pay", "should die", …) and
+    // contraction handling are covered in phrase-context.test.ts.
   });
 });

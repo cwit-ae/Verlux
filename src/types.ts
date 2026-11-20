@@ -108,4 +108,20 @@ export interface PhraseEntry {
   severity: Severity;
   /** Category */
   category: Category;
+  /**
+   * Words that cancel the match when they come right after the phrase, for
+   * phrases that are harmless with one continuation and abusive with another
+   * ("should die" vs "the noise should die down"). An item with several words
+   * ("and back") must match that whole sequence. Punctuation between the
+   * phrase and the next word breaks the link.
+   */
+  notFollowedBy?: string[];
+  /** Words that cancel the match when they come right before the phrase. */
+  notPrecededBy?: string[];
+  /**
+   * Only match when the phrase ends its sentence or clause — followed by the
+   * end of the text, a line break, or punctuation, not by another word.
+   * Separates "you will pay for this!" from "you will pay for this order".
+   */
+  atClauseEnd?: boolean;
 }

@@ -858,12 +858,17 @@ export const ES_PHRASES: PhraseEntry[] = [
     severity: 'medium',
     category: 'sexual',
   },
+  // Idioms: "te voy a matar de risa" (you'll make me die laughing),
+  // "a besos" (with kisses), "de un susto" (scare you to death).
   {
     phrase: 'te voy a matar',
     words: ['te', 'voy', 'a', 'matar'],
     language: 'es',
     severity: 'high',
     category: 'threat',
+    notFollowedBy: [
+      'de risa', 'a besos', 'a cosquillas', 'a abrazos', 'de un susto',
+    ],
   },
   {
     phrase: 'comer polla',
